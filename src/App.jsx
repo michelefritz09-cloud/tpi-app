@@ -1,126 +1,197 @@
 import React, { useState } from "react";
+import {
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip
+} from "recharts";
+import "./App.css";
 
-const steps = [
-  {
-    name: "Communication",
-    questions: [
-      "La communication est claire.",
-      "Je peux m’exprimer facilement.",
-    ],
-  },
-  {
-    name: "Confiance",
-    questions: [
-      "Je fais confiance à l’équipe.",
-      "Je me sens en sécurité.",
-    ],
-  },
-  {
-    name: "Clarté",
-    questions: [
-      "Les rôles sont clairs.",
-      "Les objectifs sont clairs.",
-    ],
-  },
-  {
-    name: "Engagement",
-    questions: [
-      "Je suis impliqué.",
-      "L’équipe donne le maximum.",
-    ],
-  },
-  {
-    name: "Cohésion",
-    questions: [
-      "Bonne ambiance.",
-      "On reste soudés.",
-    ],
-  },
+const questions = [
+  { id: 1, dimension: "Communication", text: "La communication dans l’équipe est claire." },
+  { id: 2, dimension: "Communication", text: "Je peux exprimer facilement mon point de vue." },
+  { id: 3, dimension: "Confiance", text: "Je fais confiance aux autres membres de l’équipe." },
+  { id: 4, dimension: "Confiance", text: "Je me sens en sécurité pour parler des difficultés." },
+  { id: 5, dimension: "Clarté", text: "Les rôles de chacun sont bien compris." },
+  { id: 6, dimension: "Clarté", text: "Les objectifs de l’équipe sont clairs." },
+  { id: 7, dimension: "Engagement", text: "Je me sens impliqué dans la réussite collective." },
+  { id: 8, dimension: "Engagement", text: "L’équipe fournit les efforts nécessaires." },
+  { id: 9, dimension: "Cohésion", text: "L’ambiance favorise la performance collective." },
+  { id: 10, dimension: "Cohésion", text: "L’équipe reste soudée dans les moments difficiles." },
 ];
+
+const dimensions = ["Communication", "Confiance", "Clarté", "Engagement", "Cohésion"];
 
 export default function App() {
   const [view, setView] = useState("participant");
-  const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
+  const [submitted, setSubmitted] = useState(false);
 
-  const handleAnswer = (questionIndex, value) => {
-    const key = `${step}-${questionIndex}`;
-    setAnswers({ ...answers, [key]: value });
+  const handleAnswer = (id, value) => {
+    setAnswers({ ...answers, [id]: Number(value) });
   };
 
-  const nextStep = () => {
-    if (step < steps.length - 1) setStep(step + 1);
-  };
+  const data = dimensions.map((dimension) => {
+    const related = questions.filter((q) => q.dimension === dimension);
+    const values = related.map((q) => answers[q.id] || 0);
+    const avg = values.reduce((a, b) => a + b, 0) / related.length;
 
-  const calculateScores = () => {
-    return steps.map((stepData, i) => {
-      const values = stepData.questions.map((_, qIndex) => {
-        return answers[`${i}-${qIndex}`] || 0;
-      });
-      const avg = values.reduce((a, b) => a + b, 0) / values.length;
-      return {
-        name: stepData.name,
-        score: Math.round((avg / 5) * 100),
-      };
-    });
-  };
+    return {
+      dimension,
+      score: Math.round((avg / 5) * 100),
+    };
+  });
 
-  const scores = calculateScores();
+  const globalScore = Math.round(
+    data.reduce((sum, item) => sum + item.score, 0) / data.length
+  );
 
-  const globalScore =
-    scores.length > 0
-      ? Math.round(scores.reduce((a, b) => a + b.score, 0) / scores.length)
-      : 0;
-
-  const weakest = scores.reduce((min, s) => (s.score < min.score ? s : min), scores[0] || {});
-  const strongest = scores.reduce((max, s) => (s.score > max.score ? s : max), scores[0] || {});
+  const completed = Object.keys(answers).length;
+  const isComplete = completed === questions.length;
 
   return (
-    <div style={{ padding: 20, fontFamily: "Arial" }}>
-      <div style={{ marginBottom: 20 }}>
-        <button onClick={() => setView("participant")}>Participant</button>
-        <button onClick={() => setView("coach")}>Coach</button>
-      </div>
+    <div className="page">
+      <header className="hero">
+        <div className="heroText">
+          <p className="kicker">Prototype TPI</p>
+          <h1>Team Performance Intelligence</h1>
+          <p>
+            Diagnostic d’équipe, questionnaire participant et dashboard coach.
+          </p>
+        </div>
 
-      {view === "participant" && (
-        <div>
-          <h2>{steps[step].name}</h2>
-
-          {steps[step].questions.map((q, i) => (
-            <div key={i}>
-              <p>{q}</p>
-              {[1, 2, 3, 4, 5].map((val) => (
-                <button
-                  key={val}
-                  onClick={() => handleAnswer(i, val)}
-                >
-                  {val}
-                </button>
-              ))}
-            </div>
-          ))}
-
-          <button onClick={nextStep}>
-            {step === steps.length - 1 ? "Terminer" : "Suivant"}
+        <div className="tabs">
+          <button
+            className={view === "participant" ? "tab active" : "tab"}
+            onClick={() => setView("participant")}
+          >
+            Participant
+          </button>
+          <button
+            className={view === "coach" ? "tab active" : "tab"}
+            onClick={() => setView("coach")}
+          >
+            Coach
           </button>
         </div>
+      </header>
+
+      {view === "participant" && (
+        <main className="participantLayout">
+          <section className="card">
+            <div className="cardHeader">
+              <div>
+                <h2>Formulaire participant</h2>
+                <p>Réponds de 1 à 5 à chaque affirmation.</p>
+              </div>
+              <span className="progressBadge">
+                {completed}/{questions.length}
+              </span>
+            </div>
+
+            <div className="progressBar">
+              <div
+                className="progressFill"
+                style={{ width: `${(completed / questions.length) * 100}%` }}
+              />
+            </div>
+
+            <div className="questionsList">
+              {questions.map((q) => (
+                <div key={q.id} className="questionBlock">
+                  <div className="questionText">
+                    <span>{q.dimension}</span>
+                    <p>{q.text}</p>
+                  </div>
+
+                  <div className="scale">
+                    {[1, 2, 3, 4, 5].map((value) => (
+                      <button
+                        key={value}
+                        className={
+                          answers[q.id] === value
+                            ? "scoreButton selected"
+                            : "scoreButton"
+                        }
+                        onClick={() => handleAnswer(q.id, value)}
+                      >
+                        {value}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              className="submitButton"
+              disabled={!isComplete}
+              onClick={() => setSubmitted(true)}
+            >
+              Envoyer mes réponses
+            </button>
+
+            {submitted && (
+              <p className="success">
+                Réponses envoyées ✅ Le dashboard coach est mis à jour.
+              </p>
+            )}
+          </section>
+        </main>
       )}
 
       {view === "coach" && (
-        <div>
-          <h2>Score global : {globalScore}/100</h2>
+        <main className="coachGrid">
+          <section className="scoreCard">
+            <p className="kicker">Score global</p>
+            <div>
+              <span className="bigScore">{globalScore}</span>
+              <span className="outOf">/100</span>
+            </div>
+            <p>Calculé à partir des réponses participant.</p>
+          </section>
 
-          <h3>Point fort : {strongest.name}</h3>
-          <h3>Priorité : {weakest.name}</h3>
+          <section className="card chartCard">
+            <h2>Profil d’équipe</h2>
+            <div className="chartBox">
+              <ResponsiveContainer>
+                <RadarChart data={data}>
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="dimension" />
+                  <PolarRadiusAxis domain={[0, 100]} />
+                  <Radar
+                    dataKey="score"
+                    stroke="#2563eb"
+                    fill="#2563eb"
+                    fillOpacity={0.35}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
 
-          <ul>
-            {scores.map((s) => (
-              <li key={s.name}>
-                {s.name} : {s.score}
-              </li>
-            ))}
-          </ul>
-        </div>
+          <section className="card chartCard">
+            <h2>Analyse par dimension</h2>
+            <div className="chartBox">
+              <ResponsiveContainer>
+                <BarChart data={data}>
+                  <XAxis dataKey="dimension" />
+                  <YAxis domain={[0, 100]} />
+                  <Tooltip />
+                  <Bar dataKey="score" fill="#0f172a" radius={[10, 10, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+
+          <section className="card briefCard">
+            <h2>Brief IA simulé</h2>
+            <p>
+              L’équipe présente un score global de <strong>{globalScore}/100</strong>.
+              Les dimensions les plus basses doivent être traitées en priorité.
+              Dans une version complète, cette analyse serait générée automatiquement
+              par une IA à partir des réponses réelles des participants.
+            </p>
+          </section>
+        </main>
       )}
     </div>
   );
