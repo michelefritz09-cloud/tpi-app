@@ -22,8 +22,12 @@ const dimensions = ["Communication", "Confiance", "Clarté", "Engagement", "Coh�
 
 export default function App() {
   const [view, setView] = useState("participant");
+  const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
+
+  const currentDimension = dimensions[step];
+  const currentQuestions = questions.filter((q) => q.dimension === currentDimension);
 
   const handleAnswer = (id, value) => {
     setAnswers({ ...answers, [id]: Number(value) });
@@ -47,15 +51,45 @@ export default function App() {
   const completed = Object.keys(answers).length;
   const isComplete = completed === questions.length;
 
+  const strongest = data.reduce((max, item) => item.score > max.score ? item : max, data[0]);
+  const weakest = data.reduce((min, item) => item.score < min.score ? item : min, data[0]);
+
+  const canGoNext = currentQuestions.every((q) => answers[q.id]);
+
+  const nextStep = () => {
+    if (step < dimensions.length - 1) {
+      setStep(step + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      setSubmitted(true);
+      setView("coach");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const previousStep = () => {
+    if (step > 0) {
+      setStep(step - 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const fillDemo = () => {
+    const demoAnswers = {};
+    questions.forEach((q) => {
+      demoAnswers[q.id] = Math.floor(Math.random() * 3) + 3;
+    });
+    setAnswers(demoAnswers);
+    setSubmitted(true);
+  };
+
   return (
     <div className="page">
       <header className="hero">
         <div className="heroText">
           <p className="kicker">Prototype TPI</p>
           <h1>Team Performance Intelligence</h1>
-          <p>
-            Diagnostic d’équipe, questionnaire participant et dashboard coach.
-          </p>
+          <p>Diagnostic d’équipe, questionnaire participant et dashboard coach.</p>
         </div>
 
         <div className="tabs">
@@ -79,12 +113,11 @@ export default function App() {
           <section className="card">
             <div className="cardHeader">
               <div>
-                <h2>Formulaire participant</h2>
-                <p>Réponds de 1 à 5 à chaque affirmation.</p>
+                <p className="stepLabel">Étape {step + 1} / {dimensions.length}</p>
+                <h2>{currentDimension}</h2>
+                <p>Réponds de 1 à 5 aux affirmations de cette dimension.</p>
               </div>
-              <span className="progressBadge">
-                {completed}/{questions.length}
-              </span>
+              <span className="progressBadge">{completed}/{questions.length}</span>
             </div>
 
             <div className="progressBar">
@@ -95,7 +128,7 @@ export default function App() {
             </div>
 
             <div className="questionsList">
-              {questions.map((q) => (
+              {currentQuestions.map((q) => (
                 <div key={q.id} className="questionBlock">
                   <div className="questionText">
                     <span>{q.dimension}</span>
@@ -106,11 +139,7 @@ export default function App() {
                     {[1, 2, 3, 4, 5].map((value) => (
                       <button
                         key={value}
-                        className={
-                          answers[q.id] === value
-                            ? "scoreButton selected"
-                            : "scoreButton"
-                        }
+                        className={answers[q.id] === value ? "scoreButton selected" : "scoreButton"}
                         onClick={() => handleAnswer(q.id, value)}
                       >
                         {value}
@@ -121,18 +150,30 @@ export default function App() {
               ))}
             </div>
 
-            <button
-              className="submitButton"
-              disabled={!isComplete}
-              onClick={() => setSubmitted(true)}
-            >
-              Envoyer mes réponses
+            <div className="formActions">
+              <button
+                className="secondaryButton"
+                onClick={previousStep}
+                disabled={step === 0}
+              >
+                Précédent
+              </button>
+
+              <button
+                className="submitButton"
+                disabled={!canGoNext}
+                onClick={nextStep}
+              >
+                {step === dimensions.length - 1 ? "Terminer et voir le dashboard" : "Suivant"}
+              </button>
+            </div>
+
+            <button className="demoButton" onClick={fillDemo}>
+              Remplir avec des données exemple
             </button>
 
             {submitted && (
-              <p className="success">
-                Réponses envoyées ✅ Le dashboard coach est mis à jour.
-              </p>
+              <p className="success">Réponses envoyées ✅ Le dashboard coach est mis à jour.</p>
             )}
           </section>
         </main>
@@ -147,6 +188,18 @@ export default function App() {
               <span className="outOf">/100</span>
             </div>
             <p>Calculé à partir des réponses participant.</p>
+          </section>
+
+          <section className="insightCard strong">
+            <p className="kicker">Point fort</p>
+            <h2>{strongest.dimension}</h2>
+            <p>{strongest.score}/100</p>
+          </section>
+
+          <section className="insightCard weak">
+            <p className="kicker">Priorité</p>
+            <h2>{weakest.dimension}</h2>
+            <p>{weakest.score}/100</p>
           </section>
 
           <section className="card chartCard">
@@ -186,7 +239,8 @@ export default function App() {
             <h2>Brief IA simulé</h2>
             <p>
               L’équipe présente un score global de <strong>{globalScore}/100</strong>.
-              Les dimensions les plus basses doivent être traitées en priorité.
+              Le point fort actuel est <strong>{strongest.dimension}</strong>.
+              La priorité de travail semble être <strong>{weakest.dimension}</strong>.
               Dans une version complète, cette analyse serait générée automatiquement
               par une IA à partir des réponses réelles des participants.
             </p>

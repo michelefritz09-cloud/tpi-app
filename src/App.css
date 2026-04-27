@@ -44,7 +44,8 @@ button {
   opacity: 0.85;
 }
 
-.kicker {
+.kicker,
+.stepLabel {
   text-transform: uppercase;
   letter-spacing: 2px;
   font-size: 12px;
@@ -81,7 +82,8 @@ button {
 }
 
 .card,
-.scoreCard {
+.scoreCard,
+.insightCard {
   border-radius: 28px;
   padding: 26px;
   box-shadow: 0 14px 35px rgba(15, 23, 42, 0.08);
@@ -93,7 +95,8 @@ button {
 }
 
 .card h2,
-.scoreCard h2 {
+.scoreCard h2,
+.insightCard h2 {
   margin-top: 0;
   font-size: 24px;
 }
@@ -124,7 +127,7 @@ button {
   background: #e2e8f0;
   border-radius: 999px;
   overflow: hidden;
-  margin: 18px 0 12px;
+  margin: 18px 0 20px;
 }
 
 .progressFill {
@@ -188,20 +191,43 @@ button {
   box-shadow: 0 8px 18px rgba(37, 99, 235, 0.35);
 }
 
-.submitButton {
+.formActions {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 12px;
   margin-top: 24px;
-  width: 100%;
+}
+
+.submitButton,
+.secondaryButton,
+.demoButton {
   border: none;
   border-radius: 18px;
-  background: #0f172a;
-  color: white;
   padding: 16px;
   font-weight: 900;
-  font-size: 16px;
+  font-size: 15px;
   cursor: pointer;
 }
 
-.submitButton:disabled {
+.submitButton {
+  background: #0f172a;
+  color: white;
+}
+
+.secondaryButton {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.demoButton {
+  margin-top: 12px;
+  width: 100%;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.submitButton:disabled,
+.secondaryButton:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -225,6 +251,24 @@ button {
 
 .scoreCard p {
   color: #cbd5e1;
+}
+
+.insightCard {
+  background: white;
+  border: 1px solid #e2e8f0;
+}
+
+.insightCard.strong {
+  border-left: 8px solid #16a34a;
+}
+
+.insightCard.weak {
+  border-left: 8px solid #f97316;
+}
+
+.insightCard p {
+  color: #475569;
+  font-weight: 800;
 }
 
 .bigScore {
@@ -284,7 +328,8 @@ button {
   }
 
   .card,
-  .scoreCard {
+  .scoreCard,
+  .insightCard {
     padding: 18px;
     border-radius: 22px;
   }
@@ -307,6 +352,10 @@ button {
   .scoreButton {
     width: 100%;
     height: 44px;
+  }
+
+  .formActions {
+    grid-template-columns: 1fr;
   }
 
   .chartBox {
