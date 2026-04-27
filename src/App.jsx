@@ -14,220 +14,159 @@ import {
 } from "recharts";
 import "./App.css";
 
-const dimensions = [
-  "Communication",
-  "Confiance",
-  "Clarté",
-  "Engagement",
-  "Cohésion",
+const questions = [
+  { id: 1, dimension: "Communication", text: "La communication est claire." },
+  { id: 2, dimension: "Communication", text: "Je peux m’exprimer facilement." },
+  { id: 3, dimension: "Confiance", text: "Je fais confiance à l’équipe." },
+  { id: 4, dimension: "Confiance", text: "Je me sens en sécurité." },
+  { id: 5, dimension: "Clarté", text: "Les rôles sont clairs." },
+  { id: 6, dimension: "Clarté", text: "Les objectifs sont clairs." },
+  { id: 7, dimension: "Engagement", text: "Je suis impliqué." },
+  { id: 8, dimension: "Engagement", text: "L’équipe donne le max." },
+  { id: 9, dimension: "Cohésion", text: "Bonne ambiance." },
+  { id: 10, dimension: "Cohésion", text: "On reste soudés." },
 ];
 
+const dimensions = ["Communication", "Confiance", "Clarté", "Engagement", "Cohésion"];
+
 export default function App() {
-  const [scores, setScores] = useState({
-    Communication: 72,
-    Confiance: 64,
-    Clarté: 80,
-    Engagement: 68,
-    Cohésion: 76,
-  });
+  const [view, setView] = useState("participant");
+  const [answers, setAnswers] = useState({});
+  const [submitted, setSubmitted] = useState(false);
 
-  const data = dimensions.map((name) => ({
-    dimension: name,
-    score: scores[name],
-  }));
+  const handleAnswer = (id, value) => {
+    setAnswers({ ...answers, [id]: Number(value) });
+  };
 
-  const average = Math.round(
-    Object.values(scores).reduce((a, b) => a + b, 0) / dimensions.length
-  );
-
-  const handleChange = (dimension, value) => {
-    setScores({
-      ...scores,
-      [dimension]: Number(value),
+  const calculateScores = () => {
+    return dimensions.map((dimension) => {
+      const related = questions.filter((q) => q.dimension === dimension);
+      const values = related.map((q) => answers[q.id] || 0);
+      const avg = values.reduce((a, b) => a + b, 0) / related.length;
+      return {
+        dimension,
+        score: Math.round((avg / 5) * 100),
+      };
     });
   };
+
+  const data = calculateScores();
+
+  const globalScore =
+    data.length > 0
+      ? Math.round(data.reduce((sum, item) => sum + item.score, 0) / data.length)
+      : 0;
 
   return (
     <div style={styles.page}>
       <header style={styles.header}>
         <div>
           <h1 style={styles.title}>TPI</h1>
-          <p style={styles.subtitle}>Team Performance Intelligence</p>
+          <p>Team Performance Intelligence</p>
         </div>
-        <div style={styles.badge}>Prototype</div>
+
+        <div style={styles.switch}>
+          <button
+            onClick={() => setView("participant")}
+            style={view === "participant" ? styles.activeBtn : styles.btn}
+          >
+            Participant
+          </button>
+          <button
+            onClick={() => setView("coach")}
+            style={view === "coach" ? styles.activeBtn : styles.btn}
+          >
+            Coach
+          </button>
+        </div>
       </header>
 
-      <main style={styles.grid}>
-        <section style={styles.card}>
-          <h2 style={styles.cardTitle}>Dashboard coach</h2>
-          <p style={styles.text}>
-            Score global de performance collective
-          </p>
+      {view === "participant" && (
+        <div style={styles.card}>
+          <h2>Formulaire participant</h2>
 
-          <div style={styles.scoreBox}>
-            <span style={styles.score}>{average}</span>
-            <span style={styles.scoreLabel}>/ 100</span>
+          {questions.map((q) => (
+            <div key={q.id} style={{ marginBottom: 20 }}>
+              <p>{q.text}</p>
+              {[1, 2, 3, 4, 5].map((val) => (
+                <button
+                  key={val}
+                  onClick={() => handleAnswer(q.id, val)}
+                  style={{
+                    marginRight: 6,
+                    background: answers[q.id] === val ? "#2563eb" : "#ddd",
+                    color: answers[q.id] === val ? "white" : "black",
+                  }}
+                >
+                  {val}
+                </button>
+              ))}
+            </div>
+          ))}
+
+          <button
+            onClick={() => setSubmitted(true)}
+            style={{ marginTop: 20 }}
+          >
+            Envoyer
+          </button>
+
+          {submitted && <p>Réponses envoyées ✅</p>}
+        </div>
+      )}
+
+      {view === "coach" && (
+        <div style={styles.grid}>
+          <div style={styles.card}>
+            <h2>Score global</h2>
+            <h1>{globalScore}/100</h1>
           </div>
 
-          <p style={styles.smallText}>
-            Ce score est calculé à partir des 5 dimensions clés de l’équipe.
-          </p>
-        </section>
-
-        <section style={styles.card}>
-          <h2 style={styles.cardTitle}>Profil d’équipe</h2>
-          <div style={{ width: "100%", height: 280 }}>
-            <ResponsiveContainer>
+          <div style={styles.card}>
+            <h2>Radar</h2>
+            <ResponsiveContainer width="100%" height={250}>
               <RadarChart data={data}>
                 <PolarGrid />
                 <PolarAngleAxis dataKey="dimension" />
                 <PolarRadiusAxis domain={[0, 100]} />
-                <Radar
-                  name="Score"
-                  dataKey="score"
-                  stroke="#2563eb"
-                  fill="#2563eb"
-                  fillOpacity={0.35}
-                />
+                <Radar dataKey="score" fill="#2563eb" />
               </RadarChart>
             </ResponsiveContainer>
           </div>
-        </section>
 
-        <section style={styles.card}>
-          <h2 style={styles.cardTitle}>Questionnaire participant</h2>
-          <p style={styles.text}>
-            Ajuste les scores pour simuler les réponses d’une équipe.
-          </p>
-
-          {dimensions.map((dimension) => (
-            <div key={dimension} style={styles.sliderBlock}>
-              <div style={styles.sliderHeader}>
-                <span>{dimension}</span>
-                <strong>{scores[dimension]}</strong>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={scores[dimension]}
-                onChange={(e) => handleChange(dimension, e.target.value)}
-                style={{ width: "100%" }}
-              />
-            </div>
-          ))}
-        </section>
-
-        <section style={styles.card}>
-          <h2 style={styles.cardTitle}>Analyse par dimension</h2>
-          <div style={{ width: "100%", height: 280 }}>
-            <ResponsiveContainer>
+          <div style={styles.card}>
+            <h2>Barres</h2>
+            <ResponsiveContainer width="100%" height={250}>
               <BarChart data={data}>
                 <XAxis dataKey="dimension" />
-                <YAxis domain={[0, 100]} />
+                <YAxis />
                 <Tooltip />
-                <Bar dataKey="score" fill="#0f172a" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="score" fill="#0f172a" />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </section>
-
-        <section style={{ ...styles.card, ...styles.full }}>
-          <h2 style={styles.cardTitle}>Brief IA</h2>
-          <p style={styles.text}>
-            L’équipe présente un niveau global de <strong>{average}/100</strong>.
-            Les points forts semblent être la clarté et la cohésion. La priorité
-            d’amélioration pourrait être la confiance et l’engagement, avec un
-            travail sur les rituels d’équipe, les feedbacks réguliers et la
-            clarification des rôles.
-          </p>
-        </section>
-      </main>
+        </div>
+      )}
     </div>
   );
 }
 
 const styles = {
-  page: {
-    minHeight: "100vh",
-    background: "#f4f7fb",
-    color: "#0f172a",
-    fontFamily: "Arial, sans-serif",
-    padding: 24,
-  },
+  page: { padding: 20, fontFamily: "Arial" },
   header: {
-    background: "#0f172a",
-    color: "white",
-    borderRadius: 24,
-    padding: 28,
-    marginBottom: 24,
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
+    marginBottom: 20,
   },
-  title: {
-    fontSize: 48,
-    margin: 0,
-    letterSpacing: 2,
-  },
-  subtitle: {
-    margin: 0,
-    opacity: 0.8,
-  },
-  badge: {
-    background: "#2563eb",
-    padding: "10px 16px",
-    borderRadius: 999,
-    fontWeight: "bold",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-    gap: 20,
-  },
+  title: { fontSize: 40, margin: 0 },
+  switch: { display: "flex", gap: 10 },
+  btn: { padding: 10, background: "#ddd", border: "none" },
+  activeBtn: { padding: 10, background: "#2563eb", color: "white", border: "none" },
+  grid: { display: "grid", gap: 20 },
   card: {
     background: "white",
-    borderRadius: 24,
-    padding: 24,
-    boxShadow: "0 12px 30px rgba(15, 23, 42, 0.08)",
-  },
-  full: {
-    gridColumn: "1 / -1",
-  },
-  cardTitle: {
-    marginTop: 0,
-    fontSize: 24,
-  },
-  text: {
-    lineHeight: 1.6,
-    color: "#475569",
-  },
-  smallText: {
-    color: "#64748b",
-    fontSize: 14,
-  },
-  scoreBox: {
-    display: "flex",
-    alignItems: "flex-end",
-    gap: 8,
-    margin: "24px 0",
-  },
-  score: {
-    fontSize: 72,
-    fontWeight: "bold",
-    color: "#2563eb",
-  },
-  scoreLabel: {
-    fontSize: 24,
-    color: "#64748b",
-    marginBottom: 12,
-  },
-  sliderBlock: {
-    marginTop: 18,
-  },
-  sliderHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: 8,
+    padding: 20,
+    borderRadius: 10,
+    boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
   },
 };
