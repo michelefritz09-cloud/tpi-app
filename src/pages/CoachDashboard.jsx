@@ -17,9 +17,8 @@ import { demoScores } from "../data/tpiData";
 import { supabase } from "../lib/supabase";
 import { useSearchParams } from "react-router-dom";
 
-
 export default function CoachDashboard() {
-  const [scores, setScores] = useState(demoScores);
+  const [scores, setScores] = useState(null);
   const [responseCount, setResponseCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -27,6 +26,8 @@ export default function CoachDashboard() {
   const teamId = searchParams.get("team") || "demo-team";
 
   const fetchResponses = async () => {
+    setIsLoading(true);
+
     const { data, error } = await supabase
       .from("tpi_responses")
       .select("scores")
@@ -34,12 +35,14 @@ export default function CoachDashboard() {
 
     if (error) {
       console.error(error);
+      setScores(null);
+      setResponseCount(0);
       setIsLoading(false);
       return;
     }
 
     if (!data || data.length === 0) {
-      setScores(demoScores);
+      setScores(null);
       setResponseCount(0);
       setIsLoading(false);
       return;
@@ -70,11 +73,11 @@ export default function CoachDashboard() {
     fetchResponses();
 
     const channel = supabase
-      .channel("tpi-responses-live")
+      .channel(`tpi-responses-live-${teamId}`)
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "tpi_responses",
         },
@@ -87,7 +90,78 @@ export default function CoachDashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [teamId]);
+
+  const resetTeam = async () => {
+    const confirmReset = confirm(
+      `Supprimer toutes les réponses de l’équipe ${teamId} ?`
+    );
+
+    if (!confirmReset) return;
+
+    const { error } = await supabase
+      .from("tpi_responses")
+      .delete()
+      .eq("team_id", teamId);
+
+    if (error) {
+      console.error("Reset error:", error);
+      alert("Erreur lors de la suppression");
+      return;
+    }
+
+    setScores(null);
+    setResponseCount(0);
+    setIsLoading(false);
+
+    await fetchResponses();
+  };
+
+  if (isLoading) {
+    return (
+      <main className="coachGrid">
+        <section className="insightCard briefCard">
+          <h2>Chargement du dashboard...</h2>
+          <p>Récupération des réponses de l’équipe {teamId}.</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (responseCount === 0 || !scores) {
+    return (
+      <main className="coachGrid">
+        <section
+          className="insightCard briefCard"
+          style={{
+            textAlign: "center",
+            padding: "60px",
+          }}
+        >
+          <div className="stepLabel">Équipe : {teamId}</div>
+          <h2>Aucune donnée</h2>
+          <p>L’équipe n’a pas encore répondu.</p>
+          <p>Partage le lien participant pour lancer le pulse.</p>
+
+          <button
+            onClick={resetTeam}
+            style={{
+              marginTop: "20px",
+              background: "#fee2e2",
+              color: "#b91c1c",
+              border: "none",
+              padding: "12px",
+              borderRadius: "12px",
+              fontWeight: "bold",
+              cursor: "pointer",
+            }}
+          >
+            Réinitialiser les réponses
+          </button>
+        </section>
+      </main>
+    );
+  }
 
   const chartData = Object.entries(scores).map(([dimension, score]) => ({
     dimension,
@@ -106,66 +180,33 @@ export default function CoachDashboard() {
     item.score < weak.score ? item : weak
   );
 
-  //GESTION RESET
-  const resetTeam = async () => {
-  const confirmReset = confirm(
-    `Supprimer toutes les réponses de l’équipe ${teamId} ?`
-  );
-
-  if (!confirmReset) return;
-
-  const { error } = await supabase
-    .from("tpi_responses")
-    .delete()
-    .eq("team_id", teamId);
-
-  if (error) {
-    console.error("Reset error:", error);
-    alert("Erreur lors de la suppression");
-    return;
-  }
-
-// Force la remise à zéro immédiate côté interface
-  setScores(null);
-  setResponseCount(0);
-  setIsLoading(false);
-
-  // Puis relit Supabase pour confirmer
-  await fetchResponses();
-};
-
   return (
     <main className="coachGrid">
       <section className="scoreCard">
-        <div className="stepLabel">Score global</div>
+        <div className="stepLabel">Score global — {teamId}</div>
 
         <div>
-          <span className="bigScore">{responseCount === 0 ? "--" : globalScore}</span>
+          <span className="bigScore">{globalScore}</span>
           <span className="outOf">/100</span>
         </div>
 
-        <p>
-          {isLoading
-            ? "Chargement..."
-            : responseCount === 0
-            ? "Aucune réponse pour cette équipe — lance un nouveau pulse."
-            : `Calculé à partir de ${responseCount} réponse(s).`}
-        </p>
-        <button 
-  onClick={resetTeam}
-  style={{
-    marginTop: "20px",
-    background: "#fee2e2",
-    color: "#b91c1c",
-    border: "none",
-    padding: "12px",
-    borderRadius: "12px",
-    fontWeight: "bold",
-    cursor: "pointer"
-  }}
->
-  Réinitialiser les réponses
-</button>
+        <p>Calculé à partir de {responseCount} réponse(s).</p>
+
+        <button
+          onClick={resetTeam}
+          style={{
+            marginTop: "20px",
+            background: "#fee2e2",
+            color: "#b91c1c",
+            border: "none",
+            padding: "12px",
+            borderRadius: "12px",
+            fontWeight: "bold",
+            cursor: "pointer",
+          }}
+        >
+          Réinitialiser les réponses
+        </button>
       </section>
 
       <section className="insightCard strong">
@@ -182,9 +223,9 @@ export default function CoachDashboard() {
 
       <section className="insightCard">
         <h2>Profil d’équipe</h2>
-      {responseCount > 0 && (
+
         <div className="chartBox">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={300}>
             <RadarChart data={chartData}>
               <PolarGrid />
               <PolarAngleAxis dataKey="dimension" />
@@ -199,14 +240,13 @@ export default function CoachDashboard() {
             </RadarChart>
           </ResponsiveContainer>
         </div>
-      )}
       </section>
-    
+
       <section className="insightCard briefCard">
         <h2>Détail par dimension</h2>
-      {responseCount > 0 && (
+
         <div className="chartBox">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={300}>
             <BarChart data={chartData}>
               <XAxis dataKey="dimension" />
               <YAxis domain={[0, 100]} />
@@ -215,7 +255,6 @@ export default function CoachDashboard() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-      )}
       </section>
     </main>
   );
