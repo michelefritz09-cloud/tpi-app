@@ -125,6 +125,12 @@ export default function CoachDashboard() {
     return;
   }
 
+// Force la remise à zéro immédiate côté interface
+  setScores(demoScores);
+  setResponseCount(0);
+  setIsLoading(false);
+
+  // Puis relit Supabase pour confirmer
   await fetchResponses();
 };
 
