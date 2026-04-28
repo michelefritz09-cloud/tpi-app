@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { dimensions, demoScores } from "../data/tpiData";
+import { dimensions } from "../data/tpiData";
+import { supabase } from "../lib/supabase";
+import { useSearchParams } from "react-router-dom";
 
 export default function ParticipantPage() {
   const navigate = useNavigate();
@@ -8,15 +10,34 @@ export default function ParticipantPage() {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   const currentDimension = dimensions[step];
   const totalSteps = dimensions.length;
+
+  const [searchParams] = useSearchParams();
+  const teamId = searchParams.get("team") || "demo-team";
 
   const handleAnswer = (questionKey, value) => {
     setAnswers({
       ...answers,
       [questionKey]: value,
     });
+  };
+
+  const calculateScores = () => {
+    const scores = {};
+
+    dimensions.forEach((dimension, dimensionIndex) => {
+      const values = dimension.questions.map((_, questionIndex) => {
+        return answers[`${dimensionIndex}-${questionIndex}`] || 0;
+      });
+
+      const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+      scores[dimension.name] = Math.round((average / 5) * 100);
+    });
+
+    return scores;
   };
 
   const fillDemoData = () => {
@@ -31,8 +52,29 @@ export default function ParticipantPage() {
     setAnswers(demoAnswers);
   };
 
-  const finishForm = () => {
-    localStorage.setItem("tpiScores", JSON.stringify(demoScores));
+  const finishForm = async () => {
+  console.log("CLICK FINISH 🔥");
+
+  setIsSending(true);
+
+    const scores = calculateScores();
+
+    const { error } = await supabase.from("tpi_responses").insert({
+      team_id: teamId,
+      answers,
+      scores,
+    });
+
+    console.log("Supabase error:", error);
+
+    setIsSending(false);
+
+    if (error) {
+      console.error(error);
+      alert("Erreur lors de l’envoi des réponses.");
+      return;
+    }
+
     setSubmitted(true);
 
     setTimeout(() => {
@@ -105,7 +147,7 @@ export default function ParticipantPage() {
           <button
             type="button"
             className="secondaryButton"
-            disabled={step === 0}
+            disabled={step === 0 || isSending}
             onClick={() => setStep(step - 1)}
           >
             Précédent
@@ -124,10 +166,10 @@ export default function ParticipantPage() {
             <button
               type="button"
               className="submitButton"
-              disabled={!isCurrentStepComplete}
+              disabled={!isCurrentStepComplete || isSending}
               onClick={finishForm}
             >
-              Terminer et voir le dashboard
+              {isSending ? "Envoi..." : "Terminer et voir le dashboard"}
             </button>
           )}
         </div>

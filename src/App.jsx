@@ -3,6 +3,8 @@ import ParticipantPage from "./pages/ParticipantPage";
 import CoachDashboard from "./pages/CoachDashboard";
 
 export default function App() {
+  console.log(import.meta.env.VITE_SUPABASE_URL);
+  console.log(import.meta.env.VITE_SUPABASE_ANON_KEY);
   return (
     <BrowserRouter>
       <div className="page">

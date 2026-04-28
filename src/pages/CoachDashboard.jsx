@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Radar,
   RadarChart,
@@ -13,10 +14,80 @@ import {
 } from "recharts";
 
 import { demoScores } from "../data/tpiData";
+import { supabase } from "../lib/supabase";
+import { useSearchParams } from "react-router-dom";
+
 
 export default function CoachDashboard() {
-  const storedScores = localStorage.getItem("tpiScores");
-  const scores = storedScores ? JSON.parse(storedScores) : demoScores;
+  const [scores, setScores] = useState(demoScores);
+  const [responseCount, setResponseCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [searchParams] = useSearchParams();
+  const teamId = searchParams.get("team") || "demo-team";
+
+  const fetchResponses = async () => {
+    const { data, error } = await supabase
+      .from("tpi_responses")
+      .select("scores")
+      .eq("team_id", teamId);
+
+    if (error) {
+      console.error(error);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      setScores(demoScores);
+      setResponseCount(0);
+      setIsLoading(false);
+      return;
+    }
+
+    const totals = {};
+    const counts = {};
+
+    data.forEach((response) => {
+      Object.entries(response.scores).forEach(([dimension, score]) => {
+        totals[dimension] = (totals[dimension] || 0) + score;
+        counts[dimension] = (counts[dimension] || 0) + 1;
+      });
+    });
+
+    const averages = {};
+
+    Object.keys(totals).forEach((dimension) => {
+      averages[dimension] = Math.round(totals[dimension] / counts[dimension]);
+    });
+
+    setScores(averages);
+    setResponseCount(data.length);
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchResponses();
+
+    const channel = supabase
+      .channel("tpi-responses-live")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "tpi_responses",
+        },
+        () => {
+          fetchResponses();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const chartData = Object.entries(scores).map(([dimension, score]) => ({
     dimension,
@@ -45,7 +116,13 @@ export default function CoachDashboard() {
           <span className="outOf">/100</span>
         </div>
 
-        <p>Calculé à partir des réponses participant.</p>
+        <p>
+          {isLoading
+            ? "Chargement des réponses..."
+            : responseCount === 0
+            ? "Aucune réponse réelle pour le moment — données exemple affichées."
+            : `Calculé à partir de ${responseCount} réponse(s) participant.`}
+        </p>
       </section>
 
       <section className="insightCard strong">
