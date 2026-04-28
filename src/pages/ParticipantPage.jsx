@@ -78,7 +78,7 @@ export default function ParticipantPage() {
     setSubmitted(true);
 
     setTimeout(() => {
-      navigate("/coach");
+      navigate(`/coach?team=${teamId}`);
     }, 800);
   };
 
