@@ -108,7 +108,10 @@ export default function CoachDashboard() {
 
   //GESTION RESET
   const resetTeam = async () => {
-  const confirmReset = confirm("Supprimer toutes les réponses de cette équipe ?");
+  const confirmReset = confirm(
+    `Supprimer toutes les réponses de l’équipe ${teamId} ?`
+  );
+
   if (!confirmReset) return;
 
   const { error } = await supabase
@@ -117,11 +120,12 @@ export default function CoachDashboard() {
     .eq("team_id", teamId);
 
   if (error) {
-    alert("Erreur lors du reset");
-  } else {
-    alert("Données supprimées");
-    fetchData(); // recharge le dashboard
+    console.error("Reset error:", error);
+    alert("Erreur lors de la suppression");
+    return;
   }
+
+  await fetchResponses();
 };
 
   return (
