@@ -106,6 +106,24 @@ export default function CoachDashboard() {
     item.score < weak.score ? item : weak
   );
 
+  //GESTION RESET
+  const resetTeam = async () => {
+  const confirmReset = confirm("Supprimer toutes les réponses de cette équipe ?");
+  if (!confirmReset) return;
+
+  const { error } = await supabase
+    .from("tpi_responses")
+    .delete()
+    .eq("team_id", teamId);
+
+  if (error) {
+    alert("Erreur lors du reset");
+  } else {
+    alert("Données supprimées");
+    fetchData(); // recharge le dashboard
+  }
+};
+
   return (
     <main className="coachGrid">
       <section className="scoreCard">
@@ -123,6 +141,21 @@ export default function CoachDashboard() {
             ? "Aucune réponse réelle pour le moment — données exemple affichées."
             : `Calculé à partir de ${responseCount} réponse(s) participant.`}
         </p>
+        <button 
+  onClick={resetTeam}
+  style={{
+    marginTop: "20px",
+    background: "#fee2e2",
+    color: "#b91c1c",
+    border: "none",
+    padding: "12px",
+    borderRadius: "12px",
+    fontWeight: "bold",
+    cursor: "pointer"
+  }}
+>
+  Réinitialiser les réponses
+</button>
       </section>
 
       <section className="insightCard strong">
