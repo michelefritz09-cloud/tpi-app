@@ -126,7 +126,7 @@ export default function CoachDashboard() {
   }
 
 // Force la remise à zéro immédiate côté interface
-  setScores(demoScores);
+  setScores(null);
   setResponseCount(0);
   setIsLoading(false);
 
@@ -140,16 +140,16 @@ export default function CoachDashboard() {
         <div className="stepLabel">Score global</div>
 
         <div>
-          <span className="bigScore">{globalScore}</span>
+          <span className="bigScore">{responseCount === 0 ? "--" : globalScore}</span>
           <span className="outOf">/100</span>
         </div>
 
         <p>
           {isLoading
-            ? "Chargement des réponses..."
+            ? "Chargement..."
             : responseCount === 0
-            ? "Aucune réponse réelle pour le moment — données exemple affichées."
-            : `Calculé à partir de ${responseCount} réponse(s) participant.`}
+            ? "Aucune réponse pour cette équipe — lance un nouveau pulse."
+            : `Calculé à partir de ${responseCount} réponse(s).`}
         </p>
         <button 
   onClick={resetTeam}
@@ -182,7 +182,7 @@ export default function CoachDashboard() {
 
       <section className="insightCard">
         <h2>Profil d’équipe</h2>
-
+      {responseCount > 0 && (
         <div className="chartBox">
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={chartData}>
@@ -199,11 +199,12 @@ export default function CoachDashboard() {
             </RadarChart>
           </ResponsiveContainer>
         </div>
+      )}
       </section>
-
+    
       <section className="insightCard briefCard">
         <h2>Détail par dimension</h2>
-
+      {responseCount > 0 && (
         <div className="chartBox">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
@@ -214,6 +215,7 @@ export default function CoachDashboard() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      )}
       </section>
     </main>
   );
