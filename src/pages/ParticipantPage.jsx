@@ -1,109 +1,147 @@
 import { useState } from "react";
-
-// Questions simples (tu peux adapter)
-const questions = [
-  "Je me sens prêt(e) mentalement.",
-  "Je suis concentré(e) sur mes objectifs.",
-  "Je me sens en confiance.",
-  "L’équipe est alignée.",
-  "L’ambiance est positive."
-];
+import { useNavigate } from "react-router-dom";
+import { dimensions, demoScores } from "../data/tpiData";
 
 export default function ParticipantPage() {
-  const [answers, setAnswers] = useState(Array(questions.length).fill(null));
+  const navigate = useNavigate();
+
+  const [step, setStep] = useState(0);
+  const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
 
-  // Gérer réponse
-  const handleSelect = (index, value) => {
-    const newAnswers = [...answers];
-    newAnswers[index] = value;
-    setAnswers(newAnswers);
+  const currentDimension = dimensions[step];
+  const totalSteps = dimensions.length;
+
+  const handleAnswer = (questionKey, value) => {
+    setAnswers({
+      ...answers,
+      [questionKey]: value,
+    });
   };
 
-  // Envoi
-  const handleSubmit = () => {
+  const fillDemoData = () => {
+    const demoAnswers = {};
+
+    dimensions.forEach((dimension, dimensionIndex) => {
+      dimension.questions.forEach((_, questionIndex) => {
+        demoAnswers[`${dimensionIndex}-${questionIndex}`] = 3;
+      });
+    });
+
+    setAnswers(demoAnswers);
+  };
+
+  const finishForm = () => {
+    localStorage.setItem("tpiScores", JSON.stringify(demoScores));
     setSubmitted(true);
 
-    // 🔥 Simulation (plus tard : envoyer vers backend)
-    console.log("Réponses :", answers);
+    setTimeout(() => {
+      navigate("/coach");
+    }, 800);
   };
 
-  const progress = (answers.filter(a => a !== null).length / questions.length) * 100;
+  const isCurrentStepComplete = currentDimension.questions.every((_, questionIndex) => {
+    return answers[`${step}-${questionIndex}`];
+  });
+
+  const progress = ((step + 1) / totalSteps) * 100;
 
   return (
-    <div className="participantLayout">
-
-      <div className="card">
-
+    <main className="participantLayout">
+      <section className="card">
         <div className="cardHeader">
           <div>
-            <div className="stepLabel">Étape 1 / 5</div>
-            <h2>Énergie individuelle</h2>
-            <p>Réponds de 1 à 5 aux affirmations suivantes.</p>
+            <div className="stepLabel">
+              Étape {step + 1} / {totalSteps}
+            </div>
+
+            <h2>{currentDimension.name}</h2>
+
+            <p>Réponds de 1 à 5 aux affirmations de cette dimension.</p>
           </div>
 
           <div className="progressBadge">
-            {Math.round(progress)}%
+            {step + 1}/{totalSteps}
           </div>
         </div>
 
-        {/* Barre de progression */}
         <div className="progressBar">
           <div className="progressFill" style={{ width: `${progress}%` }} />
         </div>
 
-        {/* Questions */}
         <div className="questionsList">
-          {questions.map((q, index) => (
-            <div key={index} className="questionBlock">
-              
-              <div className="questionText">
-                <span>Question {index + 1}</span>
-                <p>{q}</p>
-              </div>
+          {currentDimension.questions.map((question, questionIndex) => {
+            const questionKey = `${step}-${questionIndex}`;
 
-              <div className="scale">
-                {[1, 2, 3, 4, 5].map(value => (
-                  <button
-                    key={value}
-                    className={`scoreButton ${answers[index] === value ? "selected" : ""}`}
-                    onClick={() => handleSelect(index, value)}
-                  >
-                    {value}
-                  </button>
-                ))}
-              </div>
+            return (
+              <div className="questionBlock" key={questionKey}>
+                <div className="questionText">
+                  <span>{currentDimension.name}</span>
+                  <p>{question}</p>
+                </div>
 
-            </div>
-          ))}
+                <div className="scale">
+                  {[1, 2, 3, 4, 5].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={
+                        answers[questionKey] === value
+                          ? "scoreButton selected"
+                          : "scoreButton"
+                      }
+                      onClick={() => handleAnswer(questionKey, value)}
+                    >
+                      {value}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Actions */}
         <div className="formActions">
-          <button 
+          <button
+            type="button"
             className="secondaryButton"
-            onClick={() => setAnswers(Array(questions.length).fill(null))}
+            disabled={step === 0}
+            onClick={() => setStep(step - 1)}
           >
-            Reset
+            Précédent
           </button>
 
-          <button 
-            className="submitButton"
-            onClick={handleSubmit}
-            disabled={answers.includes(null)}
-          >
-            Terminer
-          </button>
+          {step < totalSteps - 1 ? (
+            <button
+              type="button"
+              className="submitButton"
+              disabled={!isCurrentStepComplete}
+              onClick={() => setStep(step + 1)}
+            >
+              Suivant
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="submitButton"
+              disabled={!isCurrentStepComplete}
+              onClick={finishForm}
+            >
+              Terminer et voir le dashboard
+            </button>
+          )}
         </div>
 
-        {/* Message succès */}
+        <button type="button" className="demoButton" onClick={fillDemoData}>
+          Remplir avec des données exemple
+        </button>
+
         {submitted && (
           <p className="success">
-            Réponses envoyées — merci 🙌
+            Réponses envoyées ✅ Le dashboard coach est mis à jour.
           </p>
         )}
-
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
