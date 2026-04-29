@@ -263,12 +263,12 @@ export default function CoachDashboard() {
   onClick={logoutCoach}
   style={{
     marginTop: "12px",
+    marginLeft: "10px",
     background: "rgba(255,255,255,0.08)",
     color: "#e2e8f0",
     border: "1px solid rgba(255,255,255,0.2)",
     padding: "10px 16px",
-    borderRadius: "999px",
-    fontSize: "14px",
+    borderRadius: "12px",    fontSize: "14px",
     fontWeight: "500",
     cursor: "pointer",
     backdropFilter: "blur(6px)",
