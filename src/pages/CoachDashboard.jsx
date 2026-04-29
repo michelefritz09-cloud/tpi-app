@@ -27,17 +27,22 @@ export default function CoachDashboard() {
 
   const [coachPassword, setCoachPassword] = useState("");
   const [isCoachAuthenticated, setIsCoachAuthenticated] = useState(
-    sessionStorage.getItem("coach-auth") === "true"
+    sessionStorage.getItem(`coach-auth-${teamId}`) === "true"
   );
 
   const handleCoachLogin = () => {
     if (coachPassword === import.meta.env.VITE_COACH_PASSWORD) {
-      sessionStorage.setItem("coach-auth", "true");
+      sessionStorage.setItem(`coach-auth-${teamId}`, "true");
       setIsCoachAuthenticated(true);
     } else {
       alert("Code coach incorrect");
     }
   };
+
+  const logoutCoach = () => {
+  sessionStorage.removeItem(`coach-auth-${teamId}`);
+  setIsCoachAuthenticated(false);
+};
 
   const fetchResponses = async () => {
     setIsLoading(true);
@@ -229,6 +234,19 @@ export default function CoachDashboard() {
   return (
     <main className="coachGrid">
       <section className="scoreCard">
+        <button
+          onClick={logoutCoach}
+          style={{
+            marginTop: "10px",
+            background: "#e2e8f0",
+            padding: "10px",
+            borderRadius: "10px",
+            border: "none",
+            cursor: "pointer"
+          }}
+        >
+          Se déconnecter
+      </button>
         <div className="stepLabel">Score global — {teamId}</div>
 
         <div>
@@ -253,6 +271,20 @@ export default function CoachDashboard() {
         >
           Réinitialiser les réponses
         </button>
+
+        <button
+  onClick={logoutCoach}
+  style={{
+    marginTop: "10px",
+    background: "#e2e8f0",
+    padding: "10px",
+    borderRadius: "10px",
+    border: "none",
+    cursor: "pointer",
+  }}
+>
+  Se déconnecter
+</button>
       </section>
 
       <section className="insightCard strong">
