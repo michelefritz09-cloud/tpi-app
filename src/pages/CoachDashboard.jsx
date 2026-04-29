@@ -25,6 +25,20 @@ export default function CoachDashboard() {
   const [searchParams] = useSearchParams();
   const teamId = searchParams.get("team") || "demo-team";
 
+  const [coachPassword, setCoachPassword] = useState("");
+  const [isCoachAuthenticated, setIsCoachAuthenticated] = useState(
+    sessionStorage.getItem("coach-auth") === "true"
+  );
+
+  const handleCoachLogin = () => {
+    if (coachPassword === import.meta.env.VITE_COACH_PASSWORD) {
+      sessionStorage.setItem("coach-auth", "true");
+      setIsCoachAuthenticated(true);
+    } else {
+      alert("Code coach incorrect");
+    }
+  };
+
   const fetchResponses = async () => {
     setIsLoading(true);
 
@@ -116,6 +130,38 @@ export default function CoachDashboard() {
 
     await fetchResponses();
   };
+
+  if (!isCoachAuthenticated) {
+    return (
+      <main className="participantLayout">
+        <section className="card" style={{ maxWidth: "520px", margin: "0 auto" }}>
+          <div className="stepLabel">Accès coach sécurisé</div>
+          <h2>Connexion coach</h2>
+          <p>Entre le code coach pour accéder au dashboard de l’équipe {teamId}.</p>
+
+          <input
+            type="password"
+            value={coachPassword}
+            onChange={(e) => setCoachPassword(e.target.value)}
+            placeholder="Code coach"
+            style={{
+              width: "100%",
+              padding: "14px",
+              borderRadius: "14px",
+              border: "1px solid #cbd5e1",
+              marginTop: "12px",
+              marginBottom: "12px",
+              fontSize: "16px",
+            }}
+          />
+
+          <button className="submitButton" onClick={handleCoachLogin}>
+            Accéder au dashboard
+          </button>
+        </section>
+      </main>
+    );
+  }
 
   if (isLoading) {
     return (
