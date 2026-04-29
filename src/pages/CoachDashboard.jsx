@@ -234,19 +234,6 @@ export default function CoachDashboard() {
   return (
     <main className="coachGrid">
       <section className="scoreCard">
-        <button
-          onClick={logoutCoach}
-          style={{
-            marginTop: "10px",
-            background: "#e2e8f0",
-            padding: "10px",
-            borderRadius: "10px",
-            border: "none",
-            cursor: "pointer"
-          }}
-        >
-          Se déconnecter
-      </button>
         <div className="stepLabel">Score global — {teamId}</div>
 
         <div>
@@ -275,12 +262,23 @@ export default function CoachDashboard() {
         <button
   onClick={logoutCoach}
   style={{
-    marginTop: "10px",
-    background: "#e2e8f0",
-    padding: "10px",
-    borderRadius: "10px",
-    border: "none",
+    marginTop: "12px",
+    background: "rgba(255,255,255,0.08)",
+    color: "#e2e8f0",
+    border: "1px solid rgba(255,255,255,0.2)",
+    padding: "10px 16px",
+    borderRadius: "999px",
+    fontSize: "14px",
+    fontWeight: "500",
     cursor: "pointer",
+    backdropFilter: "blur(6px)",
+    transition: "all 0.2s ease",
+  }}
+  onMouseEnter={(e) => {
+    e.target.style.background = "rgba(255,255,255,0.15)";
+  }}
+  onMouseLeave={(e) => {
+    e.target.style.background = "rgba(255,255,255,0.08)";
   }}
 >
   Se déconnecter
