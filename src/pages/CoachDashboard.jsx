@@ -575,138 +575,108 @@ export default function CoachDashboard() {
       <div style={{
         gridColumn: "1 / -1",
         background: "#0f172a",
-        borderRadius: "18px",
-        padding: "18px 24px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: "16px",
-        flexWrap: "wrap",
+        borderRadius: "16px",
+        padding: "12px 18px",
+        position: "relative",
       }}>
 
-        {/* ── Bloc gauche : identité ── */}
-        <div>
-          <div style={{ fontSize: "10px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "2px" }}>
-            Team Performance Intelligence
-          </div>
-          <div style={{ fontSize: "17px", fontWeight: "800", color: "#e2e8f0", letterSpacing: "-0.01em" }}>
-            {teamId}
-          </div>
-          <div style={{ fontSize: "11px", color: "#475569", marginTop: "3px" }}>
-            Semaine {currentWeek} · {responseCount} réponse{responseCount > 1 ? "s" : ""}
-            {weeklyTrend.length > 1 && ` · ${weeklyTrend.length} semaines`}
-          </div>
-        </div>
+        {/* Bouton déconnexion — coin supérieur droit */}
+        <button
+          onClick={logoutCoach}
+          style={{
+            position: "absolute", top: "10px", right: "12px",
+            background: "transparent", color: "#334155",
+            border: "none", padding: "4px 8px", borderRadius: "6px",
+            fontSize: "11px", fontWeight: "500", cursor: "pointer",
+            transition: "color 0.15s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "#94a3b8"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "#334155"; }}
+        >
+          Déconnexion ↗
+        </button>
 
-        {/* Séparateur */}
-        <div style={{ width: "1px", alignSelf: "stretch", background: "#1e3a5f", flexShrink: 0 }} />
+        {/* Contenu principal */}
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap", paddingRight: "80px" }}>
 
-        {/* ── Bloc central : TEI — élément dominant ── */}
-        {(() => {
-          const teiColor = globalScore >= 70 ? "#4ade80" : globalScore >= 50 ? "#fbbf24" : "#f87171";
-          const teiLabel = globalScore >= 70 ? "Bonne dynamique" : globalScore >= 50 ? "À surveiller" : "Attention requise";
-          const teiRingBg = globalScore >= 70 ? "rgba(74,222,128,0.12)" : globalScore >= 50 ? "rgba(251,191,36,0.12)" : "rgba(248,113,113,0.12)";
-          return (
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              {/* Anneau coloré autour du score */}
-              <div style={{
-                width: "72px", height: "72px", borderRadius: "50%",
-                background: teiRingBg,
-                border: `2px solid ${teiColor}`,
-                display: "flex", flexDirection: "column",
-                alignItems: "center", justifyContent: "center",
-                flexShrink: 0,
-              }}>
-                <span style={{ fontSize: "26px", fontWeight: "900", color: teiColor, lineHeight: 1 }}>{globalScore}</span>
-                <span style={{ fontSize: "9px", color: "#475569", fontWeight: "600" }}>/100</span>
-              </div>
-              <div>
-                <div style={{ fontSize: "10px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "3px" }}>
-                  Score TEI
+          {/* ── Identité compacte ── */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ fontSize: "10px", fontWeight: "800", color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.12em" }}>TPI</div>
+            <div style={{ width: "1px", height: "16px", background: "#1e3a5f" }} />
+            <div style={{ fontSize: "14px", fontWeight: "700", color: "#cbd5e1" }}>{teamId}</div>
+            <div style={{ fontSize: "11px", color: "#334155" }}>
+              · S.{currentWeek} · {responseCount} rép.{weeklyTrend.length > 1 && ` · ${weeklyTrend.length} sem.`}
+            </div>
+          </div>
+
+          {/* Séparateur */}
+          <div style={{ width: "1px", height: "36px", background: "#1e3a5f", flexShrink: 0 }} />
+
+          {/* ── TEI — élément dominant ── */}
+          {(() => {
+            const teiColor  = globalScore >= 70 ? "#4ade80" : globalScore >= 50 ? "#fbbf24" : "#f87171";
+            const teiLabel  = globalScore >= 70 ? "Bonne dynamique" : globalScore >= 50 ? "À surveiller" : "Attention requise";
+            const teiRingBg = globalScore >= 70 ? "rgba(74,222,128,0.1)" : globalScore >= 50 ? "rgba(251,191,36,0.1)" : "rgba(248,113,113,0.1)";
+            return (
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{
+                  width: "58px", height: "58px", borderRadius: "50%",
+                  background: teiRingBg, border: `2px solid ${teiColor}`,
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}>
+                  <span style={{ fontSize: "22px", fontWeight: "900", color: teiColor, lineHeight: 1 }}>{globalScore}</span>
+                  <span style={{ fontSize: "8px", color: "#475569", fontWeight: "600" }}>/100</span>
                 </div>
-                <div style={{ fontSize: "13px", fontWeight: "700", color: teiColor, marginBottom: "4px" }}>
-                  {teiLabel}
+                <div>
+                  <div style={{ fontSize: "10px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "2px" }}>Score TEI</div>
+                  <div style={{ fontSize: "13px", fontWeight: "700", color: teiColor, marginBottom: "4px" }}>{teiLabel}</div>
+                  {trendDelta !== null && (
+                    <div style={{
+                      display: "inline-flex", alignItems: "center", gap: "3px",
+                      padding: "2px 7px", borderRadius: "20px",
+                      background: trendDelta >= 0 ? "rgba(74,222,128,0.12)" : "rgba(248,113,113,0.12)",
+                      fontSize: "11px", fontWeight: "700",
+                      color: trendDelta >= 0 ? "#4ade80" : "#f87171",
+                    }}>
+                      {trendDelta >= 0 ? "↑" : "↓"} {Math.abs(trendDelta)} pts
+                    </div>
+                  )}
                 </div>
-                {trendDelta !== null && (
-                  <div style={{
-                    display: "inline-flex", alignItems: "center", gap: "3px",
-                    padding: "2px 8px", borderRadius: "20px",
-                    background: trendDelta >= 0 ? "rgba(74,222,128,0.12)" : "rgba(248,113,113,0.12)",
-                    fontSize: "12px", fontWeight: "700",
-                    color: trendDelta >= 0 ? "#4ade80" : "#f87171",
-                  }}>
-                    {trendDelta >= 0 ? "↑" : "↓"} {Math.abs(trendDelta)} pts vs sem. préc.
-                  </div>
-                )}
               </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
 
-        {/* Séparateur */}
-        <div style={{ width: "1px", alignSelf: "stretch", background: "#1e3a5f", flexShrink: 0 }} />
+          {/* Séparateur */}
+          <div style={{ width: "1px", height: "36px", background: "#1e3a5f", flexShrink: 0 }} />
 
-        {/* ── Bloc droite : insights ── */}
-        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-
-          {/* Point fort */}
-          <div style={{
-            padding: "10px 16px", borderRadius: "12px",
-            background: "rgba(74,222,128,0.08)",
-            border: "1px solid rgba(74,222,128,0.2)",
-            minWidth: "130px",
-          }}>
-            <div style={{ fontSize: "10px", fontWeight: "700", color: "#4ade80", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>
-              ↑ Point fort
+          {/* ── Insights ── */}
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+            <div style={{ padding: "8px 14px", borderRadius: "10px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.18)" }}>
+              <div style={{ fontSize: "9px", fontWeight: "700", color: "#4ade80", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>↑ Point fort</div>
+              <div style={{ fontSize: "14px", fontWeight: "800", color: "#e2e8f0" }}>{strongest.dimension}</div>
+              <div style={{ fontSize: "11px", fontWeight: "600", color: "#4ade80" }}>{strongest.score}/100</div>
             </div>
-            <div style={{ fontSize: "15px", fontWeight: "800", color: "#e2e8f0", marginBottom: "1px" }}>
-              {strongest.dimension}
-            </div>
-            <div style={{ fontSize: "12px", fontWeight: "600", color: "#4ade80" }}>
-              {strongest.score}/100
+            <div style={{ padding: "8px 14px", borderRadius: "10px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.18)" }}>
+              <div style={{ fontSize: "9px", fontWeight: "700", color: "#f87171", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>⚠ Priorité</div>
+              <div style={{ fontSize: "14px", fontWeight: "800", color: "#e2e8f0" }}>{weakest.dimension}</div>
+              <div style={{ fontSize: "11px", fontWeight: "600", color: "#f87171" }}>{weakest.score}/100</div>
             </div>
           </div>
 
-          {/* Priorité */}
-          <div style={{
-            padding: "10px 16px", borderRadius: "12px",
-            background: "rgba(248,113,113,0.08)",
-            border: "1px solid rgba(248,113,113,0.2)",
-            minWidth: "130px",
-          }}>
-            <div style={{ fontSize: "10px", fontWeight: "700", color: "#f87171", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>
-              ⚠ Priorité
-            </div>
-            <div style={{ fontSize: "15px", fontWeight: "800", color: "#e2e8f0", marginBottom: "1px" }}>
-              {weakest.dimension}
-            </div>
-            <div style={{ fontSize: "12px", fontWeight: "600", color: "#f87171" }}>
-              {weakest.score}/100
-            </div>
-          </div>
-        </div>
+          {/* Séparateur */}
+          <div style={{ width: "1px", height: "36px", background: "#1e3a5f", flexShrink: 0 }} />
 
-        {/* Séparateur */}
-        <div style={{ width: "1px", alignSelf: "stretch", background: "#1e3a5f", flexShrink: 0 }} />
-
-        {/* ── Actions ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          {/* ── Réinitialiser (discret) ── */}
           <button
             onClick={resetTeam}
-            style={{ background: "transparent", color: "#475569", border: "1px solid #1e3a5f", padding: "6px 12px", borderRadius: "8px", fontWeight: "600", cursor: "pointer", fontSize: "11px", transition: "all 0.15s", textAlign: "left" }}
+            style={{ background: "transparent", color: "#334155", border: "1px solid #1e3a5f", padding: "6px 11px", borderRadius: "8px", fontWeight: "600", cursor: "pointer", fontSize: "11px", transition: "all 0.15s" }}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#ef4444"; e.currentTarget.style.color = "#f87171"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e3a5f"; e.currentTarget.style.color = "#475569"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e3a5f"; e.currentTarget.style.color = "#334155"; }}
           >
             Réinitialiser
           </button>
-          <button
-            onClick={logoutCoach}
-            style={{ background: "transparent", color: "#475569", border: "1px solid #1e3a5f", padding: "6px 12px", borderRadius: "8px", fontSize: "11px", fontWeight: "500", cursor: "pointer" }}
-          >
-            Déconnexion
-          </button>
-        </div>
 
+        </div>
       </div>
 
       {/* ══════════════════════════════════════════
