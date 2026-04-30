@@ -569,99 +569,144 @@ export default function CoachDashboard() {
     <main className="coachGrid">
 
       {/* ══════════════════════════════════════════
-          HEADER — Bande compacte pleine largeur
+          HEADER — Bande avec hiérarchie visuelle
       ══════════════════════════════════════════ */}
 
       <div style={{
         gridColumn: "1 / -1",
         background: "#0f172a",
-        borderRadius: "16px",
-        padding: "14px 20px",
+        borderRadius: "18px",
+        padding: "18px 24px",
         display: "flex",
         alignItems: "center",
-        gap: "6px",
-        flexWrap: "wrap",
         justifyContent: "space-between",
+        gap: "16px",
+        flexWrap: "wrap",
       }}>
-        {/* Gauche : identité + TEI */}
-        <div style={{ display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
 
-          {/* Nom équipe */}
-          <div>
-            <div style={{ fontSize: "10px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em" }}>TPI</div>
-            <div style={{ fontSize: "15px", fontWeight: "800", color: "#e2e8f0" }}>{teamId}</div>
+        {/* ── Bloc gauche : identité ── */}
+        <div>
+          <div style={{ fontSize: "10px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "2px" }}>
+            Team Performance Intelligence
           </div>
-
-          {/* Séparateur */}
-          <div style={{ width: "1px", height: "32px", background: "#1e3a5f" }} />
-
-          {/* TEI */}
-          <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
-            <span style={{ fontSize: "28px", fontWeight: "800", color: "#fff", lineHeight: 1 }}>{globalScore}</span>
-            <span style={{ fontSize: "13px", color: "#64748b", fontWeight: "600" }}>/100</span>
-            {trendDelta !== null && (
-              <span style={{ fontSize: "13px", fontWeight: "700", marginLeft: "4px", color: trendDelta >= 0 ? "#4ade80" : "#f87171" }}>
-                {trendDelta >= 0 ? "↑" : "↓"}{Math.abs(trendDelta)}
-              </span>
-            )}
+          <div style={{ fontSize: "17px", fontWeight: "800", color: "#e2e8f0", letterSpacing: "-0.01em" }}>
+            {teamId}
           </div>
-
-          {/* Séparateur */}
-          <div style={{ width: "1px", height: "32px", background: "#1e3a5f" }} />
-
-          {/* Semaine + réponses */}
-          <div style={{ fontSize: "12px", color: "#94a3b8", lineHeight: "1.5" }}>
-            <span style={{ color: "#cbd5e1", fontWeight: "600" }}>S.{currentWeek}</span>
-            {" · "}{responseCount} réponse{responseCount > 1 ? "s" : ""}
-            {weeklyTrend.length > 1 && <span> · {weeklyTrend.length} sem.</span>}
+          <div style={{ fontSize: "11px", color: "#475569", marginTop: "3px" }}>
+            Semaine {currentWeek} · {responseCount} réponse{responseCount > 1 ? "s" : ""}
+            {weeklyTrend.length > 1 && ` · ${weeklyTrend.length} semaines`}
           </div>
+        </div>
 
-          {/* Séparateur */}
-          <div style={{ width: "1px", height: "32px", background: "#1e3a5f" }} />
+        {/* Séparateur */}
+        <div style={{ width: "1px", alignSelf: "stretch", background: "#1e3a5f", flexShrink: 0 }} />
+
+        {/* ── Bloc central : TEI — élément dominant ── */}
+        {(() => {
+          const teiColor = globalScore >= 70 ? "#4ade80" : globalScore >= 50 ? "#fbbf24" : "#f87171";
+          const teiLabel = globalScore >= 70 ? "Bonne dynamique" : globalScore >= 50 ? "À surveiller" : "Attention requise";
+          const teiRingBg = globalScore >= 70 ? "rgba(74,222,128,0.12)" : globalScore >= 50 ? "rgba(251,191,36,0.12)" : "rgba(248,113,113,0.12)";
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              {/* Anneau coloré autour du score */}
+              <div style={{
+                width: "72px", height: "72px", borderRadius: "50%",
+                background: teiRingBg,
+                border: `2px solid ${teiColor}`,
+                display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                <span style={{ fontSize: "26px", fontWeight: "900", color: teiColor, lineHeight: 1 }}>{globalScore}</span>
+                <span style={{ fontSize: "9px", color: "#475569", fontWeight: "600" }}>/100</span>
+              </div>
+              <div>
+                <div style={{ fontSize: "10px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "3px" }}>
+                  Score TEI
+                </div>
+                <div style={{ fontSize: "13px", fontWeight: "700", color: teiColor, marginBottom: "4px" }}>
+                  {teiLabel}
+                </div>
+                {trendDelta !== null && (
+                  <div style={{
+                    display: "inline-flex", alignItems: "center", gap: "3px",
+                    padding: "2px 8px", borderRadius: "20px",
+                    background: trendDelta >= 0 ? "rgba(74,222,128,0.12)" : "rgba(248,113,113,0.12)",
+                    fontSize: "12px", fontWeight: "700",
+                    color: trendDelta >= 0 ? "#4ade80" : "#f87171",
+                  }}>
+                    {trendDelta >= 0 ? "↑" : "↓"} {Math.abs(trendDelta)} pts vs sem. préc.
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Séparateur */}
+        <div style={{ width: "1px", alignSelf: "stretch", background: "#1e3a5f", flexShrink: 0 }} />
+
+        {/* ── Bloc droite : insights ── */}
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
 
           {/* Point fort */}
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4ade80", flexShrink: 0 }} />
-            <div>
-              <div style={{ fontSize: "10px", color: "#64748b", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.06em" }}>Point fort</div>
-              <div style={{ fontSize: "13px", fontWeight: "700", color: "#e2e8f0" }}>
-                {strongest.dimension} <span style={{ color: "#4ade80" }}>{strongest.score}</span>
-              </div>
+          <div style={{
+            padding: "10px 16px", borderRadius: "12px",
+            background: "rgba(74,222,128,0.08)",
+            border: "1px solid rgba(74,222,128,0.2)",
+            minWidth: "130px",
+          }}>
+            <div style={{ fontSize: "10px", fontWeight: "700", color: "#4ade80", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>
+              ↑ Point fort
+            </div>
+            <div style={{ fontSize: "15px", fontWeight: "800", color: "#e2e8f0", marginBottom: "1px" }}>
+              {strongest.dimension}
+            </div>
+            <div style={{ fontSize: "12px", fontWeight: "600", color: "#4ade80" }}>
+              {strongest.score}/100
             </div>
           </div>
 
-          {/* Séparateur */}
-          <div style={{ width: "1px", height: "32px", background: "#1e3a5f" }} />
-
           {/* Priorité */}
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#f87171", flexShrink: 0 }} />
-            <div>
-              <div style={{ fontSize: "10px", color: "#64748b", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.06em" }}>Priorité</div>
-              <div style={{ fontSize: "13px", fontWeight: "700", color: "#e2e8f0" }}>
-                {weakest.dimension} <span style={{ color: "#f87171" }}>{weakest.score}</span>
-              </div>
+          <div style={{
+            padding: "10px 16px", borderRadius: "12px",
+            background: "rgba(248,113,113,0.08)",
+            border: "1px solid rgba(248,113,113,0.2)",
+            minWidth: "130px",
+          }}>
+            <div style={{ fontSize: "10px", fontWeight: "700", color: "#f87171", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>
+              ⚠ Priorité
+            </div>
+            <div style={{ fontSize: "15px", fontWeight: "800", color: "#e2e8f0", marginBottom: "1px" }}>
+              {weakest.dimension}
+            </div>
+            <div style={{ fontSize: "12px", fontWeight: "600", color: "#f87171" }}>
+              {weakest.score}/100
             </div>
           </div>
         </div>
 
-        {/* Droite : actions */}
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+        {/* Séparateur */}
+        <div style={{ width: "1px", alignSelf: "stretch", background: "#1e3a5f", flexShrink: 0 }} />
+
+        {/* ── Actions ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <button
             onClick={resetTeam}
-            style={{ background: "transparent", color: "#64748b", border: "1px solid #1e3a5f", padding: "7px 12px", borderRadius: "10px", fontWeight: "600", cursor: "pointer", fontSize: "12px", transition: "all 0.15s" }}
+            style={{ background: "transparent", color: "#475569", border: "1px solid #1e3a5f", padding: "6px 12px", borderRadius: "8px", fontWeight: "600", cursor: "pointer", fontSize: "11px", transition: "all 0.15s", textAlign: "left" }}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#ef4444"; e.currentTarget.style.color = "#f87171"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e3a5f"; e.currentTarget.style.color = "#64748b"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e3a5f"; e.currentTarget.style.color = "#475569"; }}
           >
             Réinitialiser
           </button>
           <button
             onClick={logoutCoach}
-            style={{ background: "rgba(255,255,255,0.06)", color: "#94a3b8", border: "1px solid #1e3a5f", padding: "7px 12px", borderRadius: "10px", fontSize: "12px", fontWeight: "500", cursor: "pointer" }}
+            style={{ background: "transparent", color: "#475569", border: "1px solid #1e3a5f", padding: "6px 12px", borderRadius: "8px", fontSize: "11px", fontWeight: "500", cursor: "pointer" }}
           >
             Déconnexion
           </button>
         </div>
+
       </div>
 
       {/* ══════════════════════════════════════════
