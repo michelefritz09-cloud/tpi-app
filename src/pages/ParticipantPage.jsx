@@ -1,11 +1,21 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { dimensions } from "../data/tpiData";
 import { supabase } from "../lib/supabase";
-import { useSearchParams } from "react-router-dom";
+
+// Calcule le numéro de semaine ISO (1-52)
+function getISOWeekNumber(date = new Date()) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
 
 export default function ParticipantPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const teamId = searchParams.get("team") || "demo-team";
 
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -15,63 +25,55 @@ export default function ParticipantPage() {
   const currentDimension = dimensions[step];
   const totalSteps = dimensions.length;
 
-  const [searchParams] = useSearchParams();
-  const teamId = searchParams.get("team") || "demo-team";
-
   const handleAnswer = (questionKey, value) => {
-    setAnswers({
-      ...answers,
-      [questionKey]: value,
-    });
+    setAnswers({ ...answers, [questionKey]: value });
   };
 
   const calculateScores = () => {
     const scores = {};
-
     dimensions.forEach((dimension, dimensionIndex) => {
       const values = dimension.questions.map((_, questionIndex) => {
         return answers[`${dimensionIndex}-${questionIndex}`] || 0;
       });
-
       const average = values.reduce((sum, value) => sum + value, 0) / values.length;
       scores[dimension.name] = Math.round((average / 5) * 100);
     });
-
     return scores;
   };
 
   const fillDemoData = () => {
     const demoAnswers = {};
-
     dimensions.forEach((dimension, dimensionIndex) => {
       dimension.questions.forEach((_, questionIndex) => {
-        demoAnswers[`${dimensionIndex}-${questionIndex}`] = 3;
+        // Valeurs variées pour une démo plus réaliste
+        const values = [3, 4, 5, 3, 4, 4, 5, 3, 4, 4];
+        demoAnswers[`${dimensionIndex}-${questionIndex}`] =
+          values[(dimensionIndex * 2 + questionIndex) % values.length];
       });
     });
-
     setAnswers(demoAnswers);
   };
 
   const finishForm = async () => {
-  console.log("CLICK FINISH 🔥");
-
-  setIsSending(true);
+    setIsSending(true);
 
     const scores = calculateScores();
+    const weekNumber = getISOWeekNumber();
+    const year = new Date().getFullYear();
 
     const { error } = await supabase.from("tpi_responses").insert({
       team_id: teamId,
       answers,
       scores,
+      week_number: weekNumber,
+      year,                    // on stocke aussi l'année pour éviter conflit S1 2025 vs S1 2026
     });
-
-    console.log("Supabase error:", error);
 
     setIsSending(false);
 
     if (error) {
       console.error(error);
-      alert("Erreur lors de l’envoi des réponses.");
+      alert("Erreur lors de l'envoi des réponses.");
       return;
     }
 
@@ -96,12 +98,9 @@ export default function ParticipantPage() {
             <div className="stepLabel">
               Étape {step + 1} / {totalSteps}
             </div>
-
             <h2>{currentDimension.name}</h2>
-
             <p>Réponds de 1 à 5 aux affirmations de cette dimension.</p>
           </div>
-
           <div className="progressBadge">
             {step + 1}/{totalSteps}
           </div>
@@ -114,14 +113,12 @@ export default function ParticipantPage() {
         <div className="questionsList">
           {currentDimension.questions.map((question, questionIndex) => {
             const questionKey = `${step}-${questionIndex}`;
-
             return (
               <div className="questionBlock" key={questionKey}>
                 <div className="questionText">
                   <span>{currentDimension.name}</span>
                   <p>{question}</p>
                 </div>
-
                 <div className="scale">
                   {[1, 2, 3, 4, 5].map((value) => (
                     <button
