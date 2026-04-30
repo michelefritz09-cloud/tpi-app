@@ -48,6 +48,31 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
+// ─── Dot personnalisé pour la courbe TEI — affiche V/N/D ────────────────────
+
+const ResultDot = ({ cx, cy, payload, results }) => {
+  const match = results.find((r) => r.week_number === payload.week && r.year === payload.year);
+  if (!match) {
+    // Dot normal sans résultat
+    return <circle cx={cx} cy={cy} r={5} fill="#2563eb" stroke="#fff" strokeWidth={2} />;
+  }
+
+  const config = {
+    win:  { label: "V", fill: "#059669", stroke: "#dcfce7" },
+    draw: { label: "N", fill: "#d97706", stroke: "#fef3c7" },
+    loss: { label: "D", fill: "#dc2626", stroke: "#fee2e2" },
+  }[match.outcome] || { label: "?", fill: "#94a3b8", stroke: "#e2e8f0" };
+
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={14} fill={config.fill} stroke={config.stroke} strokeWidth={3} />
+      <text x={cx} y={cy + 5} textAnchor="middle" fill="#fff" fontSize={11} fontWeight="800">
+        {config.label}
+      </text>
+    </g>
+  );
+};
+
 // ─── composant principal ───────────────────────────────────────────────────────
 
 export default function CoachDashboard() {
@@ -668,11 +693,29 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
             ) : (
               <>
                 {/* ── Courbe TEI global ── */}
-                <h3 style={{ marginBottom: "16px", fontSize: "14px", color: "#64748b", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  Score TEI global — évolution semaine par semaine
-                </h3>
-                <ResponsiveContainer width="100%" height={220}>
-                  <LineChart data={weeklyTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
+                  <h3 style={{ fontSize: "14px", color: "#64748b", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    Score TEI global — évolution semaine par semaine
+                  </h3>
+                  {results.length > 0 && (
+                    <div style={{ display: "flex", gap: "10px", fontSize: "12px" }}>
+                      {[
+                        { label: "V", color: "#059669", text: "Victoire" },
+                        { label: "N", color: "#d97706", text: "Nul" },
+                        { label: "D", color: "#dc2626", text: "Défaite" },
+                      ].map((item) => (
+                        <div key={item.label} style={{ display: "flex", alignItems: "center", gap: "4px", color: "#64748b" }}>
+                          <div style={{ width: "18px", height: "18px", borderRadius: "50%", background: item.color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "800" }}>
+                            {item.label}
+                          </div>
+                          {item.text}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <ResponsiveContainer width="100%" height={240}>
+                  <LineChart data={weeklyTrend} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                     <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
@@ -680,7 +723,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
                     <ReferenceLine y={70} stroke="#f59e0b" strokeDasharray="4 4" label={{ value: "Seuil 70", fill: "#f59e0b", fontSize: 11 }} />
                     <Line
                       type="monotone" dataKey="TEI" stroke="#2563eb" strokeWidth={3}
-                      dot={{ r: 5, fill: "#2563eb", strokeWidth: 2, stroke: "#fff" }}
+                      dot={(props) => <ResultDot {...props} results={results} />}
                       activeDot={{ r: 7 }}
                     />
                   </LineChart>
