@@ -68,7 +68,7 @@ export default function CoachDashboard() {
   const [isLoading, setIsLoading]             = useState(true);
 
   // UI
-  const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" | "evolution" | "brief" | "invite" | "equipe"
+  const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" | "evolution" | "brief" | "invite" | "equipe" | "resultats"
 
   // QR code
   const qrRef = useRef(null);
@@ -83,6 +83,12 @@ export default function CoachDashboard() {
   const [respondedThisWeek, setRespondedThisWeek] = useState([]);
   const [newMemberName, setNewMemberName] = useState("");
   const [isSavingMember, setIsSavingMember] = useState(false);
+
+  // Résultats match
+  const [results, setResults]           = useState([]);
+  const [resultForm, setResultForm]     = useState({ outcome: "", score_us: "", score_them: "", opponent: "", match_date: new Date().toISOString().split("T")[0] });
+  const [isSavingResult, setIsSavingResult] = useState(false);
+  const [editingResultId, setEditingResultId] = useState(null);
 
   // ── Génération du brief IA ──
   const generateBrief = async () => {
@@ -292,6 +298,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
   useEffect(() => {
     fetchResponses();
     fetchMembers();
+    fetchResults();
 
     const channel = supabase
       .channel(`tpi-responses-live-${teamId}`)
@@ -302,6 +309,64 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
 
     return () => { supabase.removeChannel(channel); };
   }, [teamId]);
+
+  // ── Résultats match ──
+  const fetchResults = async () => {
+    const { data, error } = await supabase
+      .from("tpi_results")
+      .select("*")
+      .eq("team_id", teamId)
+      .order("year", { ascending: true })
+      .order("week_number", { ascending: true });
+
+    if (!error && data) setResults(data);
+  };
+
+  const saveResult = async () => {
+    const { outcome, score_us, score_them, opponent } = resultForm;
+    if (!outcome) return;
+
+    setIsSavingResult(true);
+    const weekNumber = getISOWeekNumber();
+    const year       = new Date().getFullYear();
+
+    if (editingResultId) {
+      await supabase.from("tpi_results").update({
+        outcome, opponent, match_date: resultForm.match_date || null,
+        score_us:   score_us   !== "" ? parseInt(score_us)   : null,
+        score_them: score_them !== "" ? parseInt(score_them) : null,
+      }).eq("id", editingResultId);
+      setEditingResultId(null);
+    } else {
+      await supabase.from("tpi_results").insert({
+        team_id: teamId, week_number: weekNumber, year,
+        outcome, opponent, match_date: resultForm.match_date || null,
+        score_us:   score_us   !== "" ? parseInt(score_us)   : null,
+        score_them: score_them !== "" ? parseInt(score_them) : null,
+      });
+    }
+
+    setResultForm({ outcome: "", score_us: "", score_them: "", opponent: "", match_date: new Date().toISOString().split("T")[0] });
+    setIsSavingResult(false);
+    fetchResults();
+  };
+
+  const deleteResult = async (id) => {
+    if (!confirm("Supprimer ce résultat ?")) return;
+    await supabase.from("tpi_results").delete().eq("id", id);
+    fetchResults();
+  };
+
+  const startEditResult = (result) => {
+    setEditingResultId(result.id);
+    setResultForm({
+      outcome:    result.outcome,
+      score_us:   result.score_us   ?? "",
+      score_them: result.score_them ?? "",
+      opponent:   result.opponent   ?? "",
+      match_date: result.match_date ?? new Date().toISOString().split("T")[0],
+    });
+  };
 
   // ── Membres de l'équipe ──
   const fetchMembers = async () => {
@@ -532,11 +597,12 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
       <section className="insightCard briefCard" style={{ gridColumn: "1 / -1" }}>
         <div style={{ display: "flex", gap: "8px", marginBottom: "24px", flexWrap: "wrap" }}>
           {[
-            { id: "dashboard", label: "Profil semaine" },
-            { id: "evolution", label: `Évolution (${weeklyTrend.length} sem.)` },
-            { id: "brief",     label: "✦ Brief IA" },
-            { id: "invite",    label: "⬡ Inviter" },
-            { id: "equipe",    label: `👥 Équipe (${members.length})` },
+            { id: "dashboard",  label: "Profil semaine" },
+            { id: "evolution",  label: `Évolution (${weeklyTrend.length} sem.)` },
+            { id: "brief",      label: "✦ Brief IA" },
+            { id: "invite",     label: "⬡ Inviter" },
+            { id: "equipe",     label: `👥 Équipe (${members.length})` },
+            { id: "resultats",  label: "⚽ Résultats" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -545,7 +611,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
                 padding: "8px 18px", borderRadius: "20px", border: "none",
                 fontWeight: "600", fontSize: "13px", cursor: "pointer",
                 background: activeTab === tab.id
-                  ? tab.id === "brief" ? "#7c3aed" : tab.id === "invite" ? "#059669" : tab.id === "equipe" ? "#0891b2" : "#2563eb"
+                  ? tab.id === "brief" ? "#7c3aed" : tab.id === "invite" ? "#059669" : tab.id === "equipe" ? "#0891b2" : tab.id === "resultats" ? "#dc2626" : "#2563eb"
                   : "#f1f5f9",
                 color: activeTab === tab.id ? "#fff" : "#475569",
                 transition: "all 0.2s",
@@ -997,6 +1063,205 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
                           onMouseEnter={(e) => { e.target.style.color = "#ef4444"; e.target.style.background = "#fee2e2"; }}
                           onMouseLeave={(e) => { e.target.style.color = "#cbd5e1"; e.target.style.background = "transparent"; }}
                         >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+          </div>
+        )}
+
+        {/* ── Tab Résultats ── */}
+        {activeTab === "resultats" && (
+          <div>
+            <div style={{ marginBottom: "24px" }}>
+              <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#1e293b", marginBottom: "4px" }}>
+                Résultats des matchs
+              </h3>
+              <p style={{ fontSize: "13px", color: "#94a3b8" }}>
+                Saisis les résultats pour corréler l'énergie d'équipe avec les performances terrain.
+              </p>
+            </div>
+
+            {/* Formulaire saisie */}
+            <div style={{ padding: "20px", background: "#f8fafc", borderRadius: "16px", border: "1px solid #e2e8f0", marginBottom: "24px" }}>
+              <div style={{ fontSize: "13px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "16px" }}>
+                {editingResultId ? "Modifier le résultat" : `Résultat — Semaine ${getISOWeekNumber()}`}
+              </div>
+
+              {/* Adversaire */}
+              <div style={{ marginBottom: "12px" }}>
+                <label style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "6px" }}>Adversaire (optionnel)</label>
+                <input
+                  type="text"
+                  value={resultForm.opponent}
+                  onChange={(e) => setResultForm({ ...resultForm, opponent: e.target.value })}
+                  placeholder="ex: FC Lyon"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "14px", outline: "none" }}
+                />
+              </div>
+
+              {/* Date du match */}
+              <div style={{ marginBottom: "12px" }}>
+                <label style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "6px" }}>Date du match</label>
+                <input
+                  type="date"
+                  value={resultForm.match_date}
+                  onChange={(e) => setResultForm({ ...resultForm, match_date: e.target.value })}
+                  style={{ padding: "10px 12px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "14px", outline: "none", cursor: "pointer" }}
+                />
+              </div>
+
+              {/* Résultat */}
+              <div style={{ marginBottom: "12px" }}>
+                <label style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "6px" }}>Résultat *</label>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  {[
+                    { value: "win",  label: "Victoire", color: "#059669", bg: "#dcfce7" },
+                    { value: "draw", label: "Nul",      color: "#d97706", bg: "#fef3c7" },
+                    { value: "loss", label: "Défaite",  color: "#dc2626", bg: "#fee2e2" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setResultForm({ ...resultForm, outcome: opt.value })}
+                      style={{
+                        flex: 1, padding: "10px", borderRadius: "10px", border: "2px solid",
+                        borderColor: resultForm.outcome === opt.value ? opt.color : "#e2e8f0",
+                        background: resultForm.outcome === opt.value ? opt.bg : "#fff",
+                        color: resultForm.outcome === opt.value ? opt.color : "#94a3b8",
+                        fontWeight: "700", fontSize: "14px", cursor: "pointer", transition: "all 0.15s",
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Score */}
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "6px" }}>Score (optionnel)</label>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <input
+                    type="number" min="0" max="99"
+                    value={resultForm.score_us}
+                    onChange={(e) => setResultForm({ ...resultForm, score_us: e.target.value })}
+                    placeholder="Nous"
+                    style={{ width: "80px", padding: "10px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "18px", fontWeight: "700", textAlign: "center", outline: "none" }}
+                  />
+                  <span style={{ fontSize: "20px", fontWeight: "700", color: "#94a3b8" }}>—</span>
+                  <input
+                    type="number" min="0" max="99"
+                    value={resultForm.score_them}
+                    onChange={(e) => setResultForm({ ...resultForm, score_them: e.target.value })}
+                    placeholder="Eux"
+                    style={{ width: "80px", padding: "10px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "18px", fontWeight: "700", textAlign: "center", outline: "none" }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  onClick={saveResult}
+                  disabled={!resultForm.outcome || isSavingResult}
+                  style={{
+                    padding: "12px 24px", borderRadius: "10px", border: "none",
+                    background: resultForm.outcome ? "#dc2626" : "#e2e8f0",
+                    color: resultForm.outcome ? "#fff" : "#94a3b8",
+                    fontWeight: "700", fontSize: "14px",
+                    cursor: resultForm.outcome ? "pointer" : "not-allowed",
+                  }}
+                >
+                  {isSavingResult ? "Enregistrement..." : editingResultId ? "Mettre à jour" : "Enregistrer"}
+                </button>
+                {editingResultId && (
+                  <button
+                    onClick={() => { setEditingResultId(null); setResultForm({ outcome: "", score_us: "", score_them: "", opponent: "" }); }}
+                    style={{ padding: "12px 20px", borderRadius: "10px", border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontWeight: "600", fontSize: "14px", cursor: "pointer" }}
+                  >
+                    Annuler
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Liste des résultats */}
+            {results.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px", background: "#f8fafc", borderRadius: "16px", border: "2px dashed #e2e8f0" }}>
+                <p style={{ fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Aucun résultat enregistré</p>
+                <p style={{ fontSize: "13px", color: "#94a3b8" }}>Saisis ton premier résultat de match ci-dessus.</p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
+                  Historique
+                </div>
+                {[...results].reverse().map((result) => {
+                  const outcomeConfig = {
+                    win:  { label: "V", color: "#059669", bg: "#dcfce7", text: "Victoire" },
+                    draw: { label: "N", color: "#d97706", bg: "#fef3c7", text: "Nul" },
+                    loss: { label: "D", color: "#dc2626", bg: "#fee2e2", text: "Défaite" },
+                  }[result.outcome] || {};
+
+                  // Trouver le TEI de cette semaine dans weeklyTrend
+                  const matchWeek = weeklyTrend.find(
+                    (w) => w.week === result.week_number && w.year === result.year
+                  );
+
+                  return (
+                    <div key={result.id} style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "14px 16px", borderRadius: "12px",
+                      background: "#fff", border: "1px solid #e2e8f0",
+                      gap: "12px", flexWrap: "wrap",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        {/* Badge résultat */}
+                        <div style={{
+                          width: "36px", height: "36px", borderRadius: "10px",
+                          background: outcomeConfig.bg, color: outcomeConfig.color,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontWeight: "800", fontSize: "16px", flexShrink: 0,
+                        }}>
+                          {outcomeConfig.label}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: "700", fontSize: "14px", color: "#1e293b" }}>
+                            {outcomeConfig.text}
+                            {result.score_us !== null && result.score_them !== null && (
+                              <span style={{ marginLeft: "8px", color: "#64748b", fontWeight: "600" }}>
+                                {result.score_us} — {result.score_them}
+                              </span>
+                            )}
+                            {result.opponent && (
+                              <span style={{ marginLeft: "6px", color: "#94a3b8", fontWeight: "400", fontSize: "13px" }}>
+                                vs {result.opponent}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "2px" }}>
+                            {result.match_date
+                              ? new Date(result.match_date).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long" })
+                              : `Semaine ${result.week_number}`}
+                            {matchWeek && (
+                              <span style={{ marginLeft: "8px", color: "#2563eb", fontWeight: "600" }}>
+                                · TEI {matchWeek.TEI}/100
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button onClick={() => startEditResult(result)} style={{ padding: "6px 12px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#f8fafc", color: "#64748b", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}>
+                          Modifier
+                        </button>
+                        <button onClick={() => deleteResult(result.id)} style={{ padding: "6px 12px", borderRadius: "8px", border: "none", background: "#fee2e2", color: "#dc2626", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}>
                           ×
                         </button>
                       </div>
