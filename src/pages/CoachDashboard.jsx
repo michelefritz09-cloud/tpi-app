@@ -51,11 +51,19 @@ const CustomTooltip = ({ active, payload, label }) => {
 // ─── Dot personnalisé pour la courbe TEI — affiche V/N/D ────────────────────
 
 const ResultDot = ({ cx, cy, payload, results }) => {
-  const match = results.find((r) => r.week_number === payload.week && r.year === payload.year);
-  if (!match) {
-    // Dot normal sans résultat
+  // Cherche tous les matchs de cette semaine
+  const matches = results.filter((r) => r.week_number === payload.week && r.year === payload.year);
+
+  // Semaine sans TEI et sans match → ne rien afficher
+  if (payload.TEI === null && matches.length === 0) return null;
+
+  if (matches.length === 0) {
+    // Semaine avec TEI mais sans match → point bleu classique
     return <circle cx={cx} cy={cy} r={5} fill="#2563eb" stroke="#fff" strokeWidth={2} />;
   }
+
+  // Si plusieurs matchs la même semaine, on prend le dernier
+  const match = matches[matches.length - 1];
 
   const config = {
     win:  { label: "V", fill: "#059669", stroke: "#dcfce7" },
@@ -69,6 +77,14 @@ const ResultDot = ({ cx, cy, payload, results }) => {
       <text x={cx} y={cy + 5} textAnchor="middle" fill="#fff" fontSize={11} fontWeight="800">
         {config.label}
       </text>
+      {matches.length > 1 && (
+        <>
+          <circle cx={cx + 11} cy={cy - 11} r={8} fill="#1e293b" />
+          <text x={cx + 11} y={cy - 7} textAnchor="middle" fill="#fff" fontSize={9} fontWeight="800">
+            {matches.length}
+          </text>
+        </>
+      )}
     </g>
   );
 };
@@ -330,7 +346,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
   useEffect(() => {
     fetchResponses();
     fetchMembers();
-    fetchResults();
+    fetchResponses().then(() => fetchResults());
 
     const channel = supabase
       .channel(`tpi-responses-live-${teamId}`)
@@ -351,7 +367,33 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
       .order("year", { ascending: true })
       .order("week_number", { ascending: true });
 
-    if (!error && data) setResults(data);
+    if (!error && data) {
+      setResults(data);
+
+      // Ajoute dans weeklyTrend les semaines de matchs sans TEI
+      setWeeklyTrend((prev) => {
+        const existingKeys = new Set(prev.map((w) => `${w.year}-${w.week}`));
+        const extra = [];
+        data.forEach((r) => {
+          const key = `${r.year}-${r.week_number}`;
+          if (!existingKeys.has(key)) {
+            existingKeys.add(key);
+            extra.push({
+              label: `S${r.week_number}`,
+              week:  r.week_number,
+              year:  r.year,
+              key:   `${r.year}-S${String(r.week_number).padStart(2, "0")}`,
+              TEI:   null,
+              responseCount: 0,
+            });
+          }
+        });
+        if (extra.length === 0) return prev;
+        return [...prev, ...extra].sort((a, b) =>
+          a.year !== b.year ? a.year - b.year : a.week - b.week
+        );
+      });
+    }
   };
 
   const saveResult = async () => {
