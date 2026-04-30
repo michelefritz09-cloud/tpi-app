@@ -50,21 +50,20 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 // ─── Dot personnalisé pour la courbe TEI — affiche V/N/D ────────────────────
 
-const ResultDot = ({ cx, cy, payload, results }) => {
-  // Cherche tous les matchs de cette semaine
+const ResultDot = ({ cx, cy, payload, results, yScale }) => {
   const matches = results.filter((r) => r.week_number === payload.week && r.year === payload.year);
 
   // Semaine sans TEI et sans match → ne rien afficher
   if (payload.TEI === null && matches.length === 0) return null;
 
+  // Si TEI null (semaine de match sans réponses) → positionner à 50 sur l'axe Y
+  const dotY = payload.TEI === null ? (yScale ? yScale(50) : cy) : cy;
+
   if (matches.length === 0) {
-    // Semaine avec TEI mais sans match → point bleu classique
-    return <circle cx={cx} cy={cy} r={5} fill="#2563eb" stroke="#fff" strokeWidth={2} />;
+    return <circle cx={cx} cy={dotY} r={5} fill="#2563eb" stroke="#fff" strokeWidth={2} />;
   }
 
-  // Si plusieurs matchs la même semaine, on prend le dernier
   const match = matches[matches.length - 1];
-
   const config = {
     win:  { label: "V", fill: "#059669", stroke: "#dcfce7" },
     draw: { label: "N", fill: "#d97706", stroke: "#fef3c7" },
@@ -73,14 +72,14 @@ const ResultDot = ({ cx, cy, payload, results }) => {
 
   return (
     <g>
-      <circle cx={cx} cy={cy} r={14} fill={config.fill} stroke={config.stroke} strokeWidth={3} />
-      <text x={cx} y={cy + 5} textAnchor="middle" fill="#fff" fontSize={11} fontWeight="800">
+      <circle cx={cx} cy={dotY} r={14} fill={config.fill} stroke={config.stroke} strokeWidth={3} />
+      <text x={cx} y={dotY + 5} textAnchor="middle" fill="#fff" fontSize={11} fontWeight="800">
         {config.label}
       </text>
       {matches.length > 1 && (
         <>
-          <circle cx={cx + 11} cy={cy - 11} r={8} fill="#1e293b" />
-          <text x={cx + 11} y={cy - 7} textAnchor="middle" fill="#fff" fontSize={9} fontWeight="800">
+          <circle cx={cx + 11} cy={dotY - 11} r={8} fill="#1e293b" />
+          <text x={cx + 11} y={dotY - 7} textAnchor="middle" fill="#fff" fontSize={9} fontWeight="800">
             {matches.length}
           </text>
         </>
@@ -370,14 +369,15 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
     if (!error && data) {
       setResults(data);
 
-      // Ajoute dans weeklyTrend les semaines de matchs sans TEI
+      // Ajoute dans weeklyTrend les semaines de matchs sans TEI — sans doublons
       setWeeklyTrend((prev) => {
         const existingKeys = new Set(prev.map((w) => `${w.year}-${w.week}`));
         const extra = [];
+        const seen  = new Set();
         data.forEach((r) => {
           const key = `${r.year}-${r.week_number}`;
-          if (!existingKeys.has(key)) {
-            existingKeys.add(key);
+          if (!existingKeys.has(key) && !seen.has(key)) {
+            seen.add(key);
             extra.push({
               label: `S${r.week_number}`,
               week:  r.week_number,
@@ -944,6 +944,7 @@ Réponds UNIQUEMENT en JSON avec cette structure exacte, sans markdown :
                     <ReferenceLine y={70} stroke="#f59e0b" strokeDasharray="4 4" label={{ value: "Seuil 70", fill: "#f59e0b", fontSize: 11 }} />
                     <Line
                       type="monotone" dataKey="TEI" stroke="#2563eb" strokeWidth={3}
+                      connectNulls={false}
                       dot={(props) => <ResultDot {...props} results={results} />}
                       activeDot={{ r: 7 }}
                     />
