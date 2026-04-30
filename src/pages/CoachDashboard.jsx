@@ -67,7 +67,96 @@ export default function CoachDashboard() {
   const [isLoading, setIsLoading]             = useState(true);
 
   // UI
-  const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" | "evolution"
+  const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" | "evolution" | "brief"
+
+  // Brief IA
+  const [brief, setBrief]             = useState(null);
+  const [isGeneratingBrief, setIsGeneratingBrief] = useState(false);
+
+  // ── Génération du brief IA ──
+  const generateBrief = async () => {
+    setIsGeneratingBrief(true);
+    setBrief(null);
+
+    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+
+    // ── MODE MOCK (pas de clé API) ──
+    if (!apiKey) {
+      await new Promise((r) => setTimeout(r, 1800)); // simule le délai réseau
+
+      const dimList = Object.entries(currentScores)
+        .map(([d, s]) => `${d} : ${s}/100`)
+        .join(", ");
+
+      const lowestDim = Object.entries(currentScores).reduce((a, b) => b[1] < a[1] ? b : a);
+      const highestDim = Object.entries(currentScores).reduce((a, b) => b[1] > a[1] ? b : a);
+      const tei = Math.round(Object.values(currentScores).reduce((s, v) => s + v, 0) / Object.values(currentScores).length);
+      const trend = trendDelta !== null ? (trendDelta >= 0 ? `en progression de +${trendDelta} pts` : `en recul de ${trendDelta} pts`) : "stable";
+
+      setBrief({
+        synthese: `L'équipe ${teamId} affiche un TEI de ${tei}/100 cette semaine (${dimList}), ${trend} par rapport à la semaine précédente. Le point fort de l'équipe est la dimension ${highestDim[0]} (${highestDim[1]}/100), ce qui indique une bonne dynamique sur cet axe. En revanche, la dimension ${lowestDim[0]} (${lowestDim[1]}/100) constitue la principale fragilité du moment et mérite une attention particulière avant la prochaine échéance.`,
+        recommandations: [
+          `Ouvrir un temps de parole collectif cette semaine autour de la dimension ${lowestDim[0]} — poser la question directement à l'équipe : qu'est-ce qui vous retient ?`,
+          `S'appuyer sur le point fort ${highestDim[0]} pour renforcer la confiance collective — mettre en valeur ce qui fonctionne avant d'aborder ce qui coince.`,
+          `Maintenir le rythme du pulse hebdomadaire pour observer si la tendance ${trend.includes("progression") ? "se confirme" : "s'inverse"} la semaine prochaine.`,
+        ],
+        isMock: true,
+      });
+
+      setIsGeneratingBrief(false);
+      return;
+    }
+
+    // ── MODE RÉEL (avec clé API Claude) ──
+    try {
+      const dimList = Object.entries(currentScores)
+        .map(([d, s]) => `- ${d} : ${s}/100`)
+        .join("\n");
+
+      const trendText = trendDelta !== null
+        ? `Tendance vs semaine précédente : ${trendDelta >= 0 ? `+${trendDelta}` : trendDelta} pts`
+        : "Première semaine de données disponibles.";
+
+      const prompt = `Tu es un expert en performance collective et coaching d'équipe. Voici les données TPI (Team Performance Intelligence) de l'équipe "${teamId}" pour cette semaine :
+
+Scores par dimension :
+${dimList}
+
+${trendText}
+Nombre de répondants : ${responseCount}
+
+Génère un brief coach structuré en JSON avec exactement ces deux clés :
+- "synthese" : un paragraphe de 3-4 phrases résumant l'état de l'équipe, les points saillants et la tendance.
+- "recommandations" : un tableau de 3 recommandations concrètes et actionnables pour le coach cette semaine.
+
+Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 800,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+
+      const data = await response.json();
+      const text = data.content?.[0]?.text || "";
+      const parsed = JSON.parse(text);
+      setBrief({ ...parsed, isMock: false });
+    } catch (err) {
+      console.error("Brief IA error:", err);
+      setBrief({ error: "Erreur lors de la génération. Vérifie ta clé API." });
+    }
+
+    setIsGeneratingBrief(false);
+  };
 
   // ── auth ──
   const handleCoachLogin = () => {
@@ -334,20 +423,26 @@ export default function CoachDashboard() {
 
       {/* ── Onglets ── */}
       <section className="insightCard briefCard" style={{ gridColumn: "1 / -1" }}>
-        <div style={{ display: "flex", gap: "8px", marginBottom: "24px" }}>
-          {["dashboard", "evolution"].map((tab) => (
+        <div style={{ display: "flex", gap: "8px", marginBottom: "24px", flexWrap: "wrap" }}>
+          {[
+            { id: "dashboard", label: "Profil semaine" },
+            { id: "evolution", label: `Évolution (${weeklyTrend.length} sem.)` },
+            { id: "brief",     label: "✦ Brief IA" },
+          ].map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
               style={{
                 padding: "8px 18px", borderRadius: "20px", border: "none",
                 fontWeight: "600", fontSize: "13px", cursor: "pointer",
-                background: activeTab === tab ? "#2563eb" : "#f1f5f9",
-                color: activeTab === tab ? "#fff" : "#475569",
+                background: activeTab === tab.id
+                  ? tab.id === "brief" ? "#7c3aed" : "#2563eb"
+                  : "#f1f5f9",
+                color: activeTab === tab.id ? "#fff" : "#475569",
                 transition: "all 0.2s",
               }}
             >
-              {tab === "dashboard" ? "Profil semaine" : `Évolution (${weeklyTrend.length} sem.)`}
+              {tab.label}
             </button>
           ))}
         </div>
@@ -480,6 +575,100 @@ export default function CoachDashboard() {
                   </table>
                 </div>
               </>
+            )}
+          </div>
+        )}
+        {/* ── Tab Brief IA ── */}
+        {activeTab === "brief" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "24px", gap: "16px", flexWrap: "wrap" }}>
+              <div>
+                <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#1e293b", marginBottom: "4px" }}>Brief coach IA</h3>
+                <p style={{ fontSize: "13px", color: "#94a3b8" }}>
+                  Synthèse automatique de l'état de l'équipe + recommandations concrètes.
+                  {!import.meta.env.VITE_ANTHROPIC_API_KEY && (
+                    <span style={{ color: "#d97706", fontWeight: "600" }}> [Mode démo — sans clé API]</span>
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={generateBrief}
+                disabled={isGeneratingBrief}
+                style={{
+                  padding: "12px 24px", borderRadius: "12px", border: "none",
+                  background: isGeneratingBrief ? "#e2e8f0" : "linear-gradient(135deg, #7c3aed, #2563eb)",
+                  color: isGeneratingBrief ? "#94a3b8" : "#fff",
+                  fontWeight: "700", fontSize: "14px", cursor: isGeneratingBrief ? "not-allowed" : "pointer",
+                  transition: "all 0.2s", whiteSpace: "nowrap",
+                }}
+              >
+                {isGeneratingBrief ? "Génération en cours..." : brief ? "Regénérer le brief" : "✦ Générer le brief"}
+              </button>
+            </div>
+
+            {/* État initial */}
+            {!brief && !isGeneratingBrief && (
+              <div style={{ textAlign: "center", padding: "48px 24px", background: "#f8fafc", borderRadius: "16px", border: "2px dashed #e2e8f0" }}>
+                <div style={{ fontSize: "40px", marginBottom: "12px" }}>✦</div>
+                <p style={{ fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Prêt à générer le brief</p>
+                <p style={{ fontSize: "13px", color: "#94a3b8" }}>Clique sur le bouton pour obtenir une synthèse de l'état de l'équipe et 3 recommandations concrètes.</p>
+              </div>
+            )}
+
+            {/* Loading */}
+            {isGeneratingBrief && (
+              <div style={{ textAlign: "center", padding: "48px 24px" }}>
+                <div style={{ fontSize: "32px", marginBottom: "12px", animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</div>
+                <p style={{ color: "#7c3aed", fontWeight: "600" }}>Analyse en cours...</p>
+              </div>
+            )}
+
+            {/* Erreur */}
+            {brief?.error && (
+              <div style={{ padding: "20px", background: "#fee2e2", borderRadius: "12px", color: "#b91c1c" }}>
+                {brief.error}
+              </div>
+            )}
+
+            {/* Résultat */}
+            {brief && !brief.error && !isGeneratingBrief && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+
+                {/* Badge démo */}
+                {brief.isMock && (
+                  <div style={{ padding: "8px 14px", background: "#fef3c7", borderRadius: "8px", fontSize: "12px", color: "#92400e", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "6px", alignSelf: "flex-start" }}>
+                    ⚠ Aperçu démo — connecte l'API Claude pour des briefs personnalisés
+                  </div>
+                )}
+
+                {/* Synthèse */}
+                <div style={{ padding: "24px", background: "linear-gradient(135deg, #eff6ff, #f5f3ff)", borderRadius: "16px", border: "1px solid #ddd6fe" }}>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>
+                    Synthèse de l'équipe
+                  </div>
+                  <p style={{ fontSize: "15px", lineHeight: "1.7", color: "#1e293b" }}>
+                    {brief.synthese}
+                  </p>
+                </div>
+
+                {/* Recommandations */}
+                <div style={{ padding: "24px", background: "#f8fafc", borderRadius: "16px", border: "1px solid #e2e8f0" }}>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "16px" }}>
+                    Recommandations pour cette semaine
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    {brief.recommandations?.map((reco, i) => (
+                      <div key={i} style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                        <div style={{ minWidth: "28px", height: "28px", borderRadius: "50%", background: "#2563eb", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "700", flexShrink: 0 }}>
+                          {i + 1}
+                        </div>
+                        <p style={{ fontSize: "14px", lineHeight: "1.6", color: "#334155", margin: 0 }}>{reco}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
             )}
           </div>
         )}
