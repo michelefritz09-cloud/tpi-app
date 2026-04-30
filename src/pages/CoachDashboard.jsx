@@ -569,41 +569,100 @@ export default function CoachDashboard() {
     <main className="coachGrid">
 
       {/* ══════════════════════════════════════════
-          HEADER — Score global + insigths
+          HEADER — Bande compacte pleine largeur
       ══════════════════════════════════════════ */}
 
-      <section className="scoreCard">
-        <div className="stepLabel">Score global — {teamId}</div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
-          <span className="bigScore">{globalScore}</span>
-          <span className="outOf">/100</span>
-          {trendDelta !== null && (
-            <span style={{ fontSize: "16px", fontWeight: "700", marginLeft: "8px", color: trendDelta >= 0 ? "#4ade80" : "#f87171" }}>
-              {trendDelta >= 0 ? "↑" : "↓"} {Math.abs(trendDelta)} pts
-            </span>
-          )}
-        </div>
-        <p>
-          {responseCount} réponse(s) — Semaine {currentWeek}
-          {weeklyTrend.length > 1 && <span style={{ color: "#94a3b8", fontSize: "13px" }}> · {weeklyTrend.length} semaines de données</span>}
-        </p>
-        <div style={{ display: "flex", gap: "10px", marginTop: "20px", flexWrap: "wrap" }}>
-          <button onClick={resetTeam} style={{ background: "#fee2e2", color: "#b91c1c", border: "none", padding: "10px 14px", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>Réinitialiser</button>
-          <button onClick={logoutCoach} style={{ background: "rgba(255,255,255,0.08)", color: "#e2e8f0", border: "1px solid rgba(255,255,255,0.2)", padding: "10px 16px", borderRadius: "12px", fontSize: "13px", fontWeight: "500", cursor: "pointer" }}>Se déconnecter</button>
-        </div>
-      </section>
+      <div style={{
+        gridColumn: "1 / -1",
+        background: "#0f172a",
+        borderRadius: "16px",
+        padding: "14px 20px",
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
+        flexWrap: "wrap",
+        justifyContent: "space-between",
+      }}>
+        {/* Gauche : identité + TEI */}
+        <div style={{ display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
 
-      <section className="insightCard strong">
-        <div className="stepLabel">Point fort</div>
-        <h2>{strongest.dimension}</h2>
-        <p>{strongest.score}/100</p>
-      </section>
+          {/* Nom équipe */}
+          <div>
+            <div style={{ fontSize: "10px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em" }}>TPI</div>
+            <div style={{ fontSize: "15px", fontWeight: "800", color: "#e2e8f0" }}>{teamId}</div>
+          </div>
 
-      <section className="insightCard weak">
-        <div className="stepLabel">Priorité</div>
-        <h2>{weakest.dimension}</h2>
-        <p>{weakest.score}/100</p>
-      </section>
+          {/* Séparateur */}
+          <div style={{ width: "1px", height: "32px", background: "#1e3a5f" }} />
+
+          {/* TEI */}
+          <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+            <span style={{ fontSize: "28px", fontWeight: "800", color: "#fff", lineHeight: 1 }}>{globalScore}</span>
+            <span style={{ fontSize: "13px", color: "#64748b", fontWeight: "600" }}>/100</span>
+            {trendDelta !== null && (
+              <span style={{ fontSize: "13px", fontWeight: "700", marginLeft: "4px", color: trendDelta >= 0 ? "#4ade80" : "#f87171" }}>
+                {trendDelta >= 0 ? "↑" : "↓"}{Math.abs(trendDelta)}
+              </span>
+            )}
+          </div>
+
+          {/* Séparateur */}
+          <div style={{ width: "1px", height: "32px", background: "#1e3a5f" }} />
+
+          {/* Semaine + réponses */}
+          <div style={{ fontSize: "12px", color: "#94a3b8", lineHeight: "1.5" }}>
+            <span style={{ color: "#cbd5e1", fontWeight: "600" }}>S.{currentWeek}</span>
+            {" · "}{responseCount} réponse{responseCount > 1 ? "s" : ""}
+            {weeklyTrend.length > 1 && <span> · {weeklyTrend.length} sem.</span>}
+          </div>
+
+          {/* Séparateur */}
+          <div style={{ width: "1px", height: "32px", background: "#1e3a5f" }} />
+
+          {/* Point fort */}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4ade80", flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: "10px", color: "#64748b", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.06em" }}>Point fort</div>
+              <div style={{ fontSize: "13px", fontWeight: "700", color: "#e2e8f0" }}>
+                {strongest.dimension} <span style={{ color: "#4ade80" }}>{strongest.score}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Séparateur */}
+          <div style={{ width: "1px", height: "32px", background: "#1e3a5f" }} />
+
+          {/* Priorité */}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#f87171", flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: "10px", color: "#64748b", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.06em" }}>Priorité</div>
+              <div style={{ fontSize: "13px", fontWeight: "700", color: "#e2e8f0" }}>
+                {weakest.dimension} <span style={{ color: "#f87171" }}>{weakest.score}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Droite : actions */}
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <button
+            onClick={resetTeam}
+            style={{ background: "transparent", color: "#64748b", border: "1px solid #1e3a5f", padding: "7px 12px", borderRadius: "10px", fontWeight: "600", cursor: "pointer", fontSize: "12px", transition: "all 0.15s" }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#ef4444"; e.currentTarget.style.color = "#f87171"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e3a5f"; e.currentTarget.style.color = "#64748b"; }}
+          >
+            Réinitialiser
+          </button>
+          <button
+            onClick={logoutCoach}
+            style={{ background: "rgba(255,255,255,0.06)", color: "#94a3b8", border: "1px solid #1e3a5f", padding: "7px 12px", borderRadius: "10px", fontSize: "12px", fontWeight: "500", cursor: "pointer" }}
+          >
+            Déconnexion
+          </button>
+        </div>
+      </div>
 
       {/* ══════════════════════════════════════════
           LIGNE 2 — 3 colonnes : Semaine | Équipe | Historique
