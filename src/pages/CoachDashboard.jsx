@@ -1073,9 +1073,9 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
             )}
           </div>
         )}
-          </div>
-        )}
+      </section>
 
+      <section className="insightCard briefCard" style={{ gridColumn: "1 / -1" }}>
         {/* ── Tab Résultats ── */}
         {activeTab === "resultats" && (
           <div>
