@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
   LineChart, Line, CartesianGrid, Legend, ReferenceLine,
 } from "recharts";
+import { QRCodeCanvas } from "qrcode.react";
 
 import { supabase } from "../lib/supabase";
 import { useSearchParams } from "react-router-dom";
@@ -67,7 +68,11 @@ export default function CoachDashboard() {
   const [isLoading, setIsLoading]             = useState(true);
 
   // UI
-  const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" | "evolution" | "brief"
+  const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" | "evolution" | "brief" | "invite"
+
+  // QR code
+  const qrRef = useRef(null);
+  const [copied, setCopied] = useState(false);
 
   // Brief IA
   const [brief, setBrief]             = useState(null);
@@ -299,6 +304,52 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
     setCurrentScores(null); setResponseCount(0); setWeeklyTrend([]); setTrendDelta(null);
   };
 
+  // ── QR code helpers ──
+  const participantUrl = `${window.location.origin}/participant?team=${teamId}`;
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(participantUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const downloadQR = () => {
+    const canvas = qrRef.current?.querySelector("canvas");
+    if (!canvas) return;
+
+    // On crée un canvas plus grand avec le nom de l'équipe + padding
+    const padding = 32;
+    const labelHeight = 48;
+    const finalCanvas = document.createElement("canvas");
+    finalCanvas.width  = canvas.width  + padding * 2;
+    finalCanvas.height = canvas.height + padding * 2 + labelHeight;
+
+    const ctx = finalCanvas.getContext("2d");
+
+    // Fond blanc
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+
+    // QR code centré
+    ctx.drawImage(canvas, padding, padding);
+
+    // Nom de l'équipe en bas
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "bold 18px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(
+      `TPI — Équipe : ${teamId}`,
+      finalCanvas.width / 2,
+      canvas.height + padding + labelHeight - 12
+    );
+
+    // Téléchargement
+    const link = document.createElement("a");
+    link.download = `TPI-QR-${teamId}.png`;
+    link.href = finalCanvas.toDataURL("image/png");
+    link.click();
+  };
+
   // ── AUTH screen ──
   if (!isCoachAuthenticated) {
     return (
@@ -428,6 +479,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
             { id: "dashboard", label: "Profil semaine" },
             { id: "evolution", label: `Évolution (${weeklyTrend.length} sem.)` },
             { id: "brief",     label: "✦ Brief IA" },
+            { id: "invite",    label: "⬡ Inviter" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -436,7 +488,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
                 padding: "8px 18px", borderRadius: "20px", border: "none",
                 fontWeight: "600", fontSize: "13px", cursor: "pointer",
                 background: activeTab === tab.id
-                  ? tab.id === "brief" ? "#7c3aed" : "#2563eb"
+                  ? tab.id === "brief" ? "#7c3aed" : tab.id === "invite" ? "#059669" : "#2563eb"
                   : "#f1f5f9",
                 color: activeTab === tab.id ? "#fff" : "#475569",
                 transition: "all 0.2s",
@@ -670,6 +722,93 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
 
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Tab Inviter ── */}
+        {activeTab === "invite" && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "28px", padding: "8px 0" }}>
+
+            {/* Titre */}
+            <div style={{ textAlign: "center" }}>
+              <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#1e293b", marginBottom: "6px" }}>
+                Inviter l'équipe <span style={{ color: "#059669" }}>{teamId}</span>
+              </h3>
+              <p style={{ fontSize: "13px", color: "#94a3b8" }}>
+                Partage ce QR code ou ce lien — les participants accèdent directement au questionnaire, sans inscription.
+              </p>
+            </div>
+
+            {/* QR code */}
+            <div
+              ref={qrRef}
+              style={{
+                padding: "24px", background: "#fff",
+                borderRadius: "20px", boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
+                border: "1px solid #e2e8f0", display: "inline-flex",
+                flexDirection: "column", alignItems: "center", gap: "16px",
+              }}
+            >
+              <QRCodeCanvas
+                value={participantUrl}
+                size={200}
+                bgColor="#ffffff"
+                fgColor="#0f172a"
+                level="H"
+                includeMargin={false}
+              />
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  TPI — Équipe
+                </div>
+                <div style={{ fontSize: "16px", fontWeight: "800", color: "#1e293b", marginTop: "2px" }}>
+                  {teamId}
+                </div>
+              </div>
+            </div>
+
+            {/* Lien copiable */}
+            <div style={{ width: "100%", maxWidth: "480px" }}>
+              <div style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>
+                Lien participant
+              </div>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <div style={{
+                  flex: 1, padding: "12px 14px", background: "#f8fafc",
+                  borderRadius: "10px", border: "1px solid #e2e8f0",
+                  fontSize: "13px", color: "#475569", fontFamily: "monospace",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>
+                  {participantUrl}
+                </div>
+                <button
+                  onClick={copyLink}
+                  style={{
+                    padding: "12px 18px", borderRadius: "10px", border: "none",
+                    background: copied ? "#dcfce7" : "#f1f5f9",
+                    color: copied ? "#15803d" : "#475569",
+                    fontWeight: "600", fontSize: "13px", cursor: "pointer",
+                    transition: "all 0.2s", whiteSpace: "nowrap",
+                  }}
+                >
+                  {copied ? "✓ Copié !" : "Copier"}
+                </button>
+              </div>
+            </div>
+
+            {/* Bouton télécharger */}
+            <button
+              onClick={downloadQR}
+              style={{
+                padding: "14px 28px", borderRadius: "12px", border: "none",
+                background: "linear-gradient(135deg, #059669, #0891b2)",
+                color: "#fff", fontWeight: "700", fontSize: "14px",
+                cursor: "pointer", display: "flex", alignItems: "center", gap: "8px",
+              }}
+            >
+              ↓ Télécharger le QR code (PNG)
+            </button>
+
           </div>
         )}
       </section>
