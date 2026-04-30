@@ -68,7 +68,7 @@ export default function CoachDashboard() {
   const [isLoading, setIsLoading]             = useState(true);
 
   // UI
-  const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" | "evolution" | "brief" | "invite"
+  const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" | "evolution" | "brief" | "invite" | "equipe"
 
   // QR code
   const qrRef = useRef(null);
@@ -77,6 +77,12 @@ export default function CoachDashboard() {
   // Brief IA
   const [brief, setBrief]             = useState(null);
   const [isGeneratingBrief, setIsGeneratingBrief] = useState(false);
+
+  // Équipe — liste des membres
+  const [members, setMembers]             = useState([]);
+  const [respondedThisWeek, setRespondedThisWeek] = useState([]);
+  const [newMemberName, setNewMemberName] = useState("");
+  const [isSavingMember, setIsSavingMember] = useState(false);
 
   // ── Génération du brief IA ──
   const generateBrief = async () => {
@@ -285,6 +291,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
 
   useEffect(() => {
     fetchResponses();
+    fetchMembers();
 
     const channel = supabase
       .channel(`tpi-responses-live-${teamId}`)
@@ -295,6 +302,55 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
 
     return () => { supabase.removeChannel(channel); };
   }, [teamId]);
+
+  // ── Membres de l'équipe ──
+  const fetchMembers = async () => {
+    const { data, error } = await supabase
+      .from("tpi_team_members")
+      .select("id, name")
+      .eq("team_id", teamId)
+      .order("name", { ascending: true });
+
+    if (!error && data) setMembers(data);
+
+    // Récupère aussi les prénoms qui ont répondu cette semaine
+    const weekNumber = getISOWeekNumber();
+    const year       = new Date().getFullYear();
+
+    const { data: responses } = await supabase
+      .from("tpi_responses")
+      .select("participant_name")
+      .eq("team_id", teamId)
+      .eq("week_number", weekNumber)
+      .eq("year", year);
+
+    if (responses) {
+      setRespondedThisWeek(
+        responses.map((r) => r.participant_name?.toLowerCase().trim()).filter(Boolean)
+      );
+    }
+  };
+
+  const addMember = async () => {
+    const name = newMemberName.trim();
+    if (!name) return;
+    setIsSavingMember(true);
+
+    const { error } = await supabase
+      .from("tpi_team_members")
+      .insert({ team_id: teamId, name });
+
+    setIsSavingMember(false);
+    if (!error) {
+      setNewMemberName("");
+      fetchMembers();
+    }
+  };
+
+  const removeMember = async (id) => {
+    await supabase.from("tpi_team_members").delete().eq("id", id);
+    fetchMembers();
+  };
 
   // ── reset ──
   const resetTeam = async () => {
@@ -480,6 +536,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
             { id: "evolution", label: `Évolution (${weeklyTrend.length} sem.)` },
             { id: "brief",     label: "✦ Brief IA" },
             { id: "invite",    label: "⬡ Inviter" },
+            { id: "equipe",    label: `👥 Équipe (${members.length})` },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -488,7 +545,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
                 padding: "8px 18px", borderRadius: "20px", border: "none",
                 fontWeight: "600", fontSize: "13px", cursor: "pointer",
                 background: activeTab === tab.id
-                  ? tab.id === "brief" ? "#7c3aed" : tab.id === "invite" ? "#059669" : "#2563eb"
+                  ? tab.id === "brief" ? "#7c3aed" : tab.id === "invite" ? "#059669" : tab.id === "equipe" ? "#0891b2" : "#2563eb"
                   : "#f1f5f9",
                 color: activeTab === tab.id ? "#fff" : "#475569",
                 transition: "all 0.2s",
@@ -809,6 +866,145 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
               ↓ Télécharger le QR code (PNG)
             </button>
 
+          </div>
+        )}
+
+        {/* ── Tab Équipe ── */}
+        {activeTab === "equipe" && (
+          <div>
+            {/* Header + stats */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
+              <div>
+                <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#1e293b", marginBottom: "4px" }}>
+                  Membres de l'équipe
+                </h3>
+                <p style={{ fontSize: "13px", color: "#94a3b8" }}>
+                  {members.length} membre{members.length > 1 ? "s" : ""} enregistré{members.length > 1 ? "s" : ""} —{" "}
+                  <span style={{ color: "#059669", fontWeight: "600" }}>
+                    {respondedThisWeek.length} ont répondu cette semaine
+                  </span>
+                  {members.length > 0 && (
+                    <span style={{ color: respondedThisWeek.length === members.length ? "#059669" : "#f59e0b", fontWeight: "600" }}>
+                      {" "}({Math.round((respondedThisWeek.length / members.length) * 100)}%)
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              {/* Barre de participation */}
+              {members.length > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{ width: "120px", height: "8px", background: "#e2e8f0", borderRadius: "99px", overflow: "hidden" }}>
+                    <div style={{
+                      height: "100%", borderRadius: "99px",
+                      background: respondedThisWeek.length === members.length ? "#059669" : "#f59e0b",
+                      width: `${Math.round((respondedThisWeek.length / members.length) * 100)}%`,
+                      transition: "width 0.4s ease",
+                    }} />
+                  </div>
+                  <span style={{ fontSize: "13px", fontWeight: "700", color: "#475569" }}>
+                    {respondedThisWeek.length}/{members.length}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Ajouter un membre */}
+            <div style={{ display: "flex", gap: "8px", marginBottom: "24px" }}>
+              <input
+                type="text"
+                value={newMemberName}
+                onChange={(e) => setNewMemberName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && newMemberName.trim() && addMember()}
+                placeholder="Ajouter un prénom... (ex: Thomas)"
+                style={{
+                  flex: 1, padding: "12px 14px", borderRadius: "12px",
+                  border: "1px solid #cbd5e1", fontSize: "14px", outline: "none",
+                }}
+              />
+              <button
+                onClick={addMember}
+                disabled={!newMemberName.trim() || isSavingMember}
+                style={{
+                  padding: "12px 20px", borderRadius: "12px", border: "none",
+                  background: newMemberName.trim() ? "#0891b2" : "#e2e8f0",
+                  color: newMemberName.trim() ? "#fff" : "#94a3b8",
+                  fontWeight: "700", fontSize: "14px", cursor: newMemberName.trim() ? "pointer" : "not-allowed",
+                  transition: "all 0.2s", whiteSpace: "nowrap",
+                }}
+              >
+                {isSavingMember ? "..." : "+ Ajouter"}
+              </button>
+            </div>
+
+            {/* Liste des membres */}
+            {members.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px", background: "#f8fafc", borderRadius: "16px", border: "2px dashed #e2e8f0" }}>
+                <p style={{ fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Aucun membre enregistré</p>
+                <p style={{ fontSize: "13px", color: "#94a3b8" }}>Ajoute les prénoms de ton équipe pour suivre la participation.</p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {members.map((member) => {
+                  const hasResponded = respondedThisWeek.includes(member.name.toLowerCase().trim());
+                  return (
+                    <div
+                      key={member.id}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "14px 16px", borderRadius: "12px",
+                        background: hasResponded ? "#f0fdf4" : "#fafafa",
+                        border: `1px solid ${hasResponded ? "#bbf7d0" : "#e2e8f0"}`,
+                        transition: "all 0.2s",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        {/* Avatar initiale */}
+                        <div style={{
+                          width: "36px", height: "36px", borderRadius: "50%",
+                          background: hasResponded ? "#059669" : "#cbd5e1",
+                          color: "#fff", display: "flex", alignItems: "center",
+                          justifyContent: "center", fontWeight: "700", fontSize: "14px",
+                          flexShrink: 0,
+                        }}>
+                          {member.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span style={{ fontWeight: "600", fontSize: "15px", color: "#1e293b" }}>
+                          {member.name}
+                        </span>
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        {/* Badge statut */}
+                        <span style={{
+                          padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "600",
+                          background: hasResponded ? "#dcfce7" : "#fef3c7",
+                          color: hasResponded ? "#15803d" : "#92400e",
+                        }}>
+                          {hasResponded ? "✓ Répondu" : "En attente"}
+                        </span>
+
+                        {/* Supprimer */}
+                        <button
+                          onClick={() => removeMember(member.id)}
+                          style={{
+                            width: "28px", height: "28px", borderRadius: "50%",
+                            border: "none", background: "transparent",
+                            color: "#cbd5e1", cursor: "pointer", fontSize: "16px",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            transition: "all 0.2s",
+                          }}
+                          onMouseEnter={(e) => { e.target.style.color = "#ef4444"; e.target.style.background = "#fee2e2"; }}
+                          onMouseLeave={(e) => { e.target.style.color = "#cbd5e1"; e.target.style.background = "transparent"; }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </section>
