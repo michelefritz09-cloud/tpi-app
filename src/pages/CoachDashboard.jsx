@@ -28,7 +28,6 @@ const DIMENSION_COLORS = {
   Cohésion:      "#dc2626",
 };
 
-// Tooltip personnalisé pour la courbe
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
@@ -48,28 +47,19 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-// ─── Dot personnalisé pour la courbe TEI — affiche V/N/D ────────────────────
-
 const ResultDot = ({ cx, cy, payload, results, yScale }) => {
   const matches = results.filter((r) => r.week_number === payload.week && r.year === payload.year);
-
-  // Semaine sans TEI et sans match → ne rien afficher
   if (payload.TEI === null && matches.length === 0) return null;
-
-  // Si TEI null (semaine de match sans réponses) → positionner à 50 sur l'axe Y
   const dotY = payload.TEI === null ? (yScale ? yScale(50) : cy) : cy;
-
   if (matches.length === 0) {
     return <circle cx={cx} cy={dotY} r={5} fill="#2563eb" stroke="#fff" strokeWidth={2} />;
   }
-
   const match = matches[matches.length - 1];
   const config = {
     win:  { label: "V", fill: "#059669", stroke: "#dcfce7" },
     draw: { label: "N", fill: "#d97706", stroke: "#fef3c7" },
     loss: { label: "D", fill: "#dc2626", stroke: "#fee2e2" },
   }[match.outcome] || { label: "?", fill: "#94a3b8", stroke: "#e2e8f0" };
-
   return (
     <g>
       <circle cx={cx} cy={dotY} r={14} fill={config.fill} stroke={config.stroke} strokeWidth={3} />
@@ -88,7 +78,28 @@ const ResultDot = ({ cx, cy, payload, results, yScale }) => {
   );
 };
 
-// ─── composant principal ───────────────────────────────────────────────────────
+// ─── Sous-composants de section ───────────────────────────────────────────────
+
+// Pill tab button réutilisable
+function TabButton({ id, label, activeTab, setActiveTab, activeColor = "#2563eb" }) {
+  const isActive = activeTab === id;
+  return (
+    <button
+      onClick={() => setActiveTab(id)}
+      style={{
+        padding: "7px 16px", borderRadius: "20px", border: "none",
+        fontWeight: "600", fontSize: "13px", cursor: "pointer",
+        background: isActive ? activeColor : "#f1f5f9",
+        color: isActive ? "#fff" : "#475569",
+        transition: "all 0.2s",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+// ─── Composant principal ───────────────────────────────────────────────────────
 
 export default function CoachDashboard() {
   const [searchParams] = useSearchParams();
@@ -103,28 +114,30 @@ export default function CoachDashboard() {
   // Data
   const [currentScores, setCurrentScores]     = useState(null);
   const [responseCount, setResponseCount]     = useState(0);
-  const [weeklyTrend, setWeeklyTrend]         = useState([]);   // [{week, TEI, Communication, ...}]
-  const [trendDelta, setTrendDelta]           = useState(null); // +5 / -3 / null
+  const [weeklyTrend, setWeeklyTrend]         = useState([]);
+  const [trendDelta, setTrendDelta]           = useState(null);
   const [isLoading, setIsLoading]             = useState(true);
 
-  // UI
-  const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" | "evolution" | "brief" | "invite" | "equipe" | "resultats"
+  // Tabs — chaque section a son propre onglet actif
+  const [semainneTab, setSemaineTab]     = useState("profil");    // "profil" | "brief"
+  const [equipeTab, setEquipeTab]        = useState("membres");   // "membres" | "inviter"
+  const [historiqueTab, setHistoriqueTab] = useState("evolution"); // "evolution" | "resultats"
 
   // QR code
   const qrRef = useRef(null);
   const [copied, setCopied] = useState(false);
 
   // Brief IA
-  const [brief, setBrief]             = useState(null);
+  const [brief, setBrief]                     = useState(null);
   const [isGeneratingBrief, setIsGeneratingBrief] = useState(false);
 
-  // Équipe — liste des membres
-  const [members, setMembers]             = useState([]);
+  // Équipe
+  const [members, setMembers]                   = useState([]);
   const [respondedThisWeek, setRespondedThisWeek] = useState([]);
-  const [newMemberName, setNewMemberName] = useState("");
-  const [isSavingMember, setIsSavingMember] = useState(false);
+  const [newMemberName, setNewMemberName]         = useState("");
+  const [isSavingMember, setIsSavingMember]       = useState(false);
 
-  // Résultats match
+  // Résultats
   const [results, setResults]           = useState([]);
   const [resultForm, setResultForm]     = useState({ outcome: "", score_us: "", score_them: "", opponent: "", match_date: new Date().toISOString().split("T")[0] });
   const [isSavingResult, setIsSavingResult] = useState(false);
@@ -137,26 +150,19 @@ export default function CoachDashboard() {
   const [extractedStats, setExtractedStats] = useState(null);
   const [importError, setImportError]     = useState(null);
 
-  // ── Génération du brief IA ──
+  // ── Brief IA ──
   const generateBrief = async () => {
     setIsGeneratingBrief(true);
     setBrief(null);
-
     const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
 
-    // ── MODE MOCK (pas de clé API) ──
     if (!apiKey) {
-      await new Promise((r) => setTimeout(r, 1800)); // simule le délai réseau
-
-      const dimList = Object.entries(currentScores)
-        .map(([d, s]) => `${d} : ${s}/100`)
-        .join(", ");
-
-      const lowestDim = Object.entries(currentScores).reduce((a, b) => b[1] < a[1] ? b : a);
+      await new Promise((r) => setTimeout(r, 1800));
+      const dimList = Object.entries(currentScores).map(([d, s]) => `${d} : ${s}/100`).join(", ");
+      const lowestDim  = Object.entries(currentScores).reduce((a, b) => b[1] < a[1] ? b : a);
       const highestDim = Object.entries(currentScores).reduce((a, b) => b[1] > a[1] ? b : a);
       const tei = Math.round(Object.values(currentScores).reduce((s, v) => s + v, 0) / Object.values(currentScores).length);
       const trend = trendDelta !== null ? (trendDelta >= 0 ? `en progression de +${trendDelta} pts` : `en recul de ${trendDelta} pts`) : "stable";
-
       setBrief({
         synthese: `L'équipe ${teamId} affiche un TEI de ${tei}/100 cette semaine (${dimList}), ${trend} par rapport à la semaine précédente. Le point fort de l'équipe est la dimension ${highestDim[0]} (${highestDim[1]}/100), ce qui indique une bonne dynamique sur cet axe. En revanche, la dimension ${lowestDim[0]} (${lowestDim[1]}/100) constitue la principale fragilité du moment et mérite une attention particulière avant la prochaine échéance.`,
         recommandations: [
@@ -166,35 +172,16 @@ export default function CoachDashboard() {
         ],
         isMock: true,
       });
-
       setIsGeneratingBrief(false);
       return;
     }
 
-    // ── MODE RÉEL (avec clé API Claude) ──
     try {
-      const dimList = Object.entries(currentScores)
-        .map(([d, s]) => `- ${d} : ${s}/100`)
-        .join("\n");
-
+      const dimList = Object.entries(currentScores).map(([d, s]) => `- ${d} : ${s}/100`).join("\n");
       const trendText = trendDelta !== null
         ? `Tendance vs semaine précédente : ${trendDelta >= 0 ? `+${trendDelta}` : trendDelta} pts`
         : "Première semaine de données disponibles.";
-
-      const prompt = `Tu es un expert en performance collective et coaching d'équipe. Voici les données TPI (Team Performance Intelligence) de l'équipe "${teamId}" pour cette semaine :
-
-Scores par dimension :
-${dimList}
-
-${trendText}
-Nombre de répondants : ${responseCount}
-
-Génère un brief coach structuré en JSON avec exactement ces deux clés :
-- "synthese" : un paragraphe de 3-4 phrases résumant l'état de l'équipe, les points saillants et la tendance.
-- "recommandations" : un tableau de 3 recommandations concrètes et actionnables pour le coach cette semaine.
-
-Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
-
+      const prompt = `Tu es un expert en performance collective et coaching d'équipe. Voici les données TPI (Team Performance Intelligence) de l'équipe "${teamId}" pour cette semaine :\n\nScores par dimension :\n${dimList}\n\n${trendText}\nNombre de répondants : ${responseCount}\n\nGénère un brief coach structuré en JSON avec exactement ces deux clés :\n- "synthese" : un paragraphe de 3-4 phrases résumant l'état de l'équipe, les points saillants et la tendance.\n- "recommandations" : un tableau de 3 recommandations concrètes et actionnables pour le coach cette semaine.\n\nRéponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -209,7 +196,6 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
           messages: [{ role: "user", content: prompt }],
         }),
       });
-
       const data = await response.json();
       const text = data.content?.[0]?.text || "";
       const parsed = JSON.parse(text);
@@ -218,11 +204,10 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
       console.error("Brief IA error:", err);
       setBrief({ error: "Erreur lors de la génération. Vérifie ta clé API." });
     }
-
     setIsGeneratingBrief(false);
   };
 
-  // ── auth ──
+  // ── Auth ──
   const handleCoachLogin = () => {
     if (coachPassword === import.meta.env.VITE_COACH_PASSWORD) {
       sessionStorage.setItem(`coach-auth-${teamId}`, "true");
@@ -237,10 +222,9 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
     setIsCoachAuthenticated(false);
   };
 
-  // ── fetch & calcul ──
+  // ── Fetch responses ──
   const fetchResponses = async () => {
     setIsLoading(true);
-
     const { data, error } = await supabase
       .from("tpi_responses")
       .select("scores, week_number, year, created_at")
@@ -248,33 +232,25 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
       .order("created_at", { ascending: true });
 
     if (error || !data || data.length === 0) {
-      setCurrentScores(null);
-      setResponseCount(0);
-      setWeeklyTrend([]);
-      setIsLoading(false);
+      setCurrentScores(null); setResponseCount(0); setWeeklyTrend([]); setIsLoading(false);
       return;
     }
 
     const currentWeek = getISOWeekNumber();
     const currentYear = new Date().getFullYear();
 
-    // ── Grouper par semaine ──
     const byWeek = {};
     data.forEach((row) => {
-      // Fallback : si week_number absent (anciennes lignes), on l'estime depuis created_at
       const week = row.week_number ?? getISOWeekNumber(new Date(row.created_at));
       const year = row.year ?? new Date(row.created_at).getFullYear();
       const key  = `${year}-S${String(week).padStart(2, "0")}`;
-
       if (!byWeek[key]) byWeek[key] = { week, year, key, rows: [] };
       byWeek[key].rows.push(row);
     });
 
-    // ── Construire la série temporelle ──
     const trend = Object.values(byWeek)
       .sort((a, b) => a.year !== b.year ? a.year - b.year : a.week - b.week)
       .map(({ week, year, key, rows }) => {
-        // Moyenne des scores par dimension pour cette semaine
         const totals = {}, counts = {};
         rows.forEach((r) => {
           Object.entries(r.scores).forEach(([dim, score]) => {
@@ -282,31 +258,19 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
             counts[dim] = (counts[dim] || 0) + 1;
           });
         });
-
         const weekScores = {};
-        Object.keys(totals).forEach((dim) => {
-          weekScores[dim] = Math.round(totals[dim] / counts[dim]);
-        });
-
-        const TEI = Math.round(
-          Object.values(weekScores).reduce((s, v) => s + v, 0) /
-          Object.values(weekScores).length
-        );
-
+        Object.keys(totals).forEach((dim) => { weekScores[dim] = Math.round(totals[dim] / counts[dim]); });
+        const TEI = Math.round(Object.values(weekScores).reduce((s, v) => s + v, 0) / Object.values(weekScores).length);
         return { label: `S${week}`, week, year, key, TEI, ...weekScores, responseCount: rows.length };
       });
 
     setWeeklyTrend(trend);
 
-    // ── Score de la semaine courante ──
-    const thisWeekKey = `${currentYear}-S${String(currentWeek).padStart(2, "0")}`;
+    const thisWeekKey  = `${currentYear}-S${String(currentWeek).padStart(2, "0")}`;
     const thisWeekData = byWeek[thisWeekKey];
-
-    let scoresForDashboard;
-    let countForDashboard;
+    let scoresForDashboard, countForDashboard;
 
     if (thisWeekData) {
-      // On a des données cette semaine
       const t = {}, c = {};
       thisWeekData.rows.forEach((r) => {
         Object.entries(r.scores).forEach(([dim, score]) => {
@@ -318,46 +282,26 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
       Object.keys(t).forEach((dim) => { scoresForDashboard[dim] = Math.round(t[dim] / c[dim]); });
       countForDashboard = thisWeekData.rows.length;
     } else {
-      // Pas encore de réponse cette semaine → on affiche la dernière semaine disponible
       const lastWeek = trend[trend.length - 1];
       if (lastWeek) {
         const { label, week, year, key, TEI, responseCount: rc, ...dimScores } = lastWeek;
         scoresForDashboard = dimScores;
-        countForDashboard = rc;
+        countForDashboard  = rc;
       }
     }
 
     setCurrentScores(scoresForDashboard || null);
     setResponseCount(countForDashboard || 0);
 
-    // ── Delta vs semaine précédente ──
     if (trend.length >= 2) {
-      const last  = trend[trend.length - 1].TEI;
-      const prev  = trend[trend.length - 2].TEI;
-      setTrendDelta(last - prev);
+      setTrendDelta(trend[trend.length - 1].TEI - trend[trend.length - 2].TEI);
     } else {
       setTrendDelta(null);
     }
-
     setIsLoading(false);
   };
 
-  useEffect(() => {
-    fetchResponses();
-    fetchMembers();
-    fetchResponses().then(() => fetchResults());
-
-    const channel = supabase
-      .channel(`tpi-responses-live-${teamId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "tpi_responses" }, () => {
-        fetchResponses();
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [teamId]);
-
-  // ── Résultats match ──
+  // ── Résultats ──
   const fetchResults = async () => {
     const { data, error } = await supabase
       .from("tpi_results")
@@ -368,8 +312,6 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
 
     if (!error && data) {
       setResults(data);
-
-      // Ajoute dans weeklyTrend les semaines de matchs sans TEI — sans doublons
       setWeeklyTrend((prev) => {
         const existingKeys = new Set(prev.map((w) => `${w.year}-${w.week}`));
         const extra = [];
@@ -378,20 +320,11 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
           const key = `${r.year}-${r.week_number}`;
           if (!existingKeys.has(key) && !seen.has(key)) {
             seen.add(key);
-            extra.push({
-              label: `S${r.week_number}`,
-              week:  r.week_number,
-              year:  r.year,
-              key:   `${r.year}-S${String(r.week_number).padStart(2, "0")}`,
-              TEI:   null,
-              responseCount: 0,
-            });
+            extra.push({ label: `S${r.week_number}`, week: r.week_number, year: r.year, key: `${r.year}-S${String(r.week_number).padStart(2, "0")}`, TEI: null, responseCount: 0 });
           }
         });
         if (extra.length === 0) return prev;
-        return [...prev, ...extra].sort((a, b) =>
-          a.year !== b.year ? a.year - b.year : a.week - b.week
-        );
+        return [...prev, ...extra].sort((a, b) => a.year !== b.year ? a.year - b.year : a.week - b.week);
       });
     }
   };
@@ -399,11 +332,9 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
   const saveResult = async () => {
     const { outcome, score_us, score_them, opponent } = resultForm;
     if (!outcome) return;
-
     setIsSavingResult(true);
     const weekNumber = getISOWeekNumber();
     const year       = new Date().getFullYear();
-
     if (editingResultId) {
       await supabase.from("tpi_results").update({
         outcome, opponent, match_date: resultForm.match_date || null,
@@ -413,13 +344,12 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
       setEditingResultId(null);
     } else {
       await supabase.from("tpi_results").insert({
-        team_id: teamId, week_number: weekNumber, year,
-        outcome, opponent, match_date: resultForm.match_date || null,
+        team_id: teamId, week_number: weekNumber, year, outcome, opponent,
+        match_date: resultForm.match_date || null,
         score_us:   score_us   !== "" ? parseInt(score_us)   : null,
         score_them: score_them !== "" ? parseInt(score_them) : null,
       });
     }
-
     setResultForm({ outcome: "", score_us: "", score_them: "", opponent: "", match_date: new Date().toISOString().split("T")[0] });
     setIsSavingResult(false);
     fetchResults();
@@ -433,13 +363,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
 
   const startEditResult = (result) => {
     setEditingResultId(result.id);
-    setResultForm({
-      outcome:    result.outcome,
-      score_us:   result.score_us   ?? "",
-      score_them: result.score_them ?? "",
-      opponent:   result.opponent   ?? "",
-      match_date: result.match_date ?? new Date().toISOString().split("T")[0],
-    });
+    setResultForm({ outcome: result.outcome, score_us: result.score_us ?? "", score_them: result.score_them ?? "", opponent: result.opponent ?? "", match_date: result.match_date ?? new Date().toISOString().split("T")[0] });
   };
 
   // ── Import feuille de match ──
@@ -448,141 +372,42 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
     setIsExtracting(true);
     setImportError(null);
     setExtractedStats(null);
-
-    // Mémoriser le nom de l'équipe
     localStorage.setItem(`tpi-team-name-${teamId}`, teamName.trim());
 
     const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-
-    // ── MODE MOCK ──
     if (!apiKey) {
       await new Promise((r) => setTimeout(r, 2000));
-
-      // Simule une extraction basée sur la feuille FIBA exemple
-      const mockStats = {
-        team_name:    teamName.trim(),
-        opponent:     "Équipe adverse",
-        score_us:     64,
-        score_them:   58,
-        outcome:      "win",
-        match_date:   new Date().toISOString().split("T")[0],
-        stats: {
-          points: 64,
-          rebonds_offensifs: 4,
-          rebonds_defensifs: 3,
-          rebonds_total: 7,
-          passes_decisives: 14,
-          balles_perdues: 14,
-          interceptions: 6,
-          tirs_2pts: "20/40 (50%)",
-          tirs_3pts: "6/25 (24%)",
-          lancer_francs: "6/14 (42.9%)",
-          fautes: 20,
-          points_balles_perdues: 14,
-          points_raquette: "38 (19/33) 57.6%",
-          points_2eme_chance: 16,
-          points_contre_attaque: 5,
-        }
-      };
-
+      const mockStats = { team_name: teamName.trim(), opponent: "Équipe adverse", score_us: 64, score_them: 58, outcome: "win", match_date: new Date().toISOString().split("T")[0], stats: { points: 64, rebonds_offensifs: 4, rebonds_defensifs: 3, rebonds_total: 7, passes_decisives: 14, balles_perdues: 14, interceptions: 6, tirs_2pts: "20/40 (50%)", tirs_3pts: "6/25 (24%)", lancer_francs: "6/14 (42.9%)", fautes: 20, points_balles_perdues: 14, points_raquette: "38 (19/33) 57.6%", points_2eme_chance: 16, points_contre_attaque: 5 } };
       setExtractedStats(mockStats);
-      // Pré-remplir le formulaire
-      setResultForm({
-        outcome:    mockStats.outcome,
-        score_us:   mockStats.score_us,
-        score_them: mockStats.score_them,
-        opponent:   mockStats.opponent,
-        match_date: mockStats.match_date,
-      });
+      setResultForm({ outcome: mockStats.outcome, score_us: mockStats.score_us, score_them: mockStats.score_them, opponent: mockStats.opponent, match_date: mockStats.match_date });
       setIsExtracting(false);
       return;
     }
 
-    // ── MODE RÉEL (avec clé API) ──
     try {
-      // Convertir le fichier en base64
       const base64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result.split(",")[1]);
         reader.onerror = reject;
         reader.readAsDataURL(importFile);
       });
-
-      const isImage = importFile.type.startsWith("image/");
+      const isImage  = importFile.type.startsWith("image/");
       const mediaType = importFile.type || "image/jpeg";
-
-      const prompt = `Voici une feuille de statistiques FIBA Box Score de basket-ball.
-
-Mon équipe s'appelle "${teamName.trim()}". Extrais UNIQUEMENT les stats de mon équipe (pas l'adversaire).
-
-Réponds UNIQUEMENT en JSON avec cette structure exacte, sans markdown :
-{
-  "team_name": "nom exact de mon équipe tel qu'affiché",
-  "opponent": "nom de l'adversaire",
-  "score_us": nombre (score de mon équipe),
-  "score_them": nombre (score adversaire),
-  "outcome": "win" | "loss" | "draw",
-  "match_date": "YYYY-MM-DD si visible sinon null",
-  "stats": {
-    "points": nombre,
-    "rebonds_offensifs": nombre,
-    "rebonds_defensifs": nombre,
-    "rebonds_total": nombre,
-    "passes_decisives": nombre,
-    "balles_perdues": nombre,
-    "interceptions": nombre,
-    "tirs_2pts": "réussis/tentés (%)",
-    "tirs_3pts": "réussis/tentés (%)",
-    "lancer_francs": "réussis/tentés (%)",
-    "fautes": nombre,
-    "points_balles_perdues": nombre ou null,
-    "points_raquette": texte ou null,
-    "points_2eme_chance": nombre ou null,
-    "points_contre_attaque": nombre ou null
-  }
-}`;
-
+      const prompt = `Voici une feuille de statistiques FIBA Box Score de basket-ball.\n\nMon équipe s'appelle "${teamName.trim()}". Extrais UNIQUEMENT les stats de mon équipe (pas l'adversaire).\n\nRéponds UNIQUEMENT en JSON avec cette structure exacte, sans markdown :\n{\n  "team_name": "nom exact de mon équipe tel qu'affiché",\n  "opponent": "nom de l'adversaire",\n  "score_us": nombre,\n  "score_them": nombre,\n  "outcome": "win" | "loss" | "draw",\n  "match_date": "YYYY-MM-DD si visible sinon null",\n  "stats": { "points": nombre, "rebonds_offensifs": nombre, "rebonds_defensifs": nombre, "rebonds_total": nombre, "passes_decisives": nombre, "balles_perdues": nombre, "interceptions": nombre, "tirs_2pts": "réussis/tentés (%)", "tirs_3pts": "réussis/tentés (%)", "lancer_francs": "réussis/tentés (%)", "fautes": nombre, "points_balles_perdues": nombre ou null, "points_raquette": texte ou null, "points_2eme_chance": nombre ou null, "points_contre_attaque": nombre ou null }\n}`;
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 1000,
-          messages: [{
-            role: "user",
-            content: [
-              {
-                type: isImage ? "image" : "document",
-                source: { type: "base64", media_type: mediaType, data: base64 },
-              },
-              { type: "text", text: prompt },
-            ],
-          }],
-        }),
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 1000, messages: [{ role: "user", content: [{ type: isImage ? "image" : "document", source: { type: "base64", media_type: mediaType, data: base64 } }, { type: "text", text: prompt }] }] }),
       });
-
       const data = await response.json();
       const text = data.content?.[0]?.text || "";
       const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
-
       setExtractedStats(parsed);
-      setResultForm({
-        outcome:    parsed.outcome,
-        score_us:   parsed.score_us,
-        score_them: parsed.score_them,
-        opponent:   parsed.opponent,
-        match_date: parsed.match_date || new Date().toISOString().split("T")[0],
-      });
+      setResultForm({ outcome: parsed.outcome, score_us: parsed.score_us, score_them: parsed.score_them, opponent: parsed.opponent, match_date: parsed.match_date || new Date().toISOString().split("T")[0] });
     } catch (err) {
       console.error(err);
       setImportError("Erreur lors de l'extraction. Vérifie que l'image est lisible et ta clé API.");
     }
-
     setIsExtracting(false);
   };
 
@@ -590,23 +415,9 @@ Réponds UNIQUEMENT en JSON avec cette structure exacte, sans markdown :
     const { outcome, score_us, score_them, opponent } = resultForm;
     if (!outcome) return;
     setIsSavingResult(true);
-
     const weekNumber = getISOWeekNumber();
     const year       = new Date().getFullYear();
-
-    await supabase.from("tpi_results").insert({
-      team_id:    teamId,
-      week_number: weekNumber,
-      year,
-      outcome,
-      opponent,
-      match_date: resultForm.match_date || null,
-      score_us:   score_us   !== "" ? parseInt(score_us)   : null,
-      score_them: score_them !== "" ? parseInt(score_them) : null,
-      team_name:  teamName.trim() || null,
-      stats:      extractedStats?.stats || null,
-    });
-
+    await supabase.from("tpi_results").insert({ team_id: teamId, week_number: weekNumber, year, outcome, opponent, match_date: resultForm.match_date || null, score_us: score_us !== "" ? parseInt(score_us) : null, score_them: score_them !== "" ? parseInt(score_them) : null, team_name: teamName.trim() || null, stats: extractedStats?.stats || null });
     setResultForm({ outcome: "", score_us: "", score_them: "", opponent: "", match_date: new Date().toISOString().split("T")[0] });
     setExtractedStats(null);
     setImportFile(null);
@@ -614,48 +425,23 @@ Réponds UNIQUEMENT en JSON avec cette structure exacte, sans markdown :
     fetchResults();
   };
 
-  // ── Membres de l'équipe ──
+  // ── Membres ──
   const fetchMembers = async () => {
-    const { data, error } = await supabase
-      .from("tpi_team_members")
-      .select("id, name")
-      .eq("team_id", teamId)
-      .order("name", { ascending: true });
-
+    const { data, error } = await supabase.from("tpi_team_members").select("id, name").eq("team_id", teamId).order("name", { ascending: true });
     if (!error && data) setMembers(data);
-
-    // Récupère aussi les prénoms qui ont répondu cette semaine
     const weekNumber = getISOWeekNumber();
     const year       = new Date().getFullYear();
-
-    const { data: responses } = await supabase
-      .from("tpi_responses")
-      .select("participant_name")
-      .eq("team_id", teamId)
-      .eq("week_number", weekNumber)
-      .eq("year", year);
-
-    if (responses) {
-      setRespondedThisWeek(
-        responses.map((r) => r.participant_name?.toLowerCase().trim()).filter(Boolean)
-      );
-    }
+    const { data: responses } = await supabase.from("tpi_responses").select("participant_name").eq("team_id", teamId).eq("week_number", weekNumber).eq("year", year);
+    if (responses) setRespondedThisWeek(responses.map((r) => r.participant_name?.toLowerCase().trim()).filter(Boolean));
   };
 
   const addMember = async () => {
     const name = newMemberName.trim();
     if (!name) return;
     setIsSavingMember(true);
-
-    const { error } = await supabase
-      .from("tpi_team_members")
-      .insert({ team_id: teamId, name });
-
+    const { error } = await supabase.from("tpi_team_members").insert({ team_id: teamId, name });
     setIsSavingMember(false);
-    if (!error) {
-      setNewMemberName("");
-      fetchMembers();
-    }
+    if (!error) { setNewMemberName(""); fetchMembers(); }
   };
 
   const removeMember = async (id) => {
@@ -663,7 +449,6 @@ Réponds UNIQUEMENT en JSON avec cette structure exacte, sans markdown :
     fetchMembers();
   };
 
-  // ── reset ──
   const resetTeam = async () => {
     if (!confirm(`Supprimer toutes les réponses de l'équipe ${teamId} ?`)) return;
     const { error } = await supabase.from("tpi_responses").delete().eq("team_id", teamId);
@@ -671,53 +456,43 @@ Réponds UNIQUEMENT en JSON avec cette structure exacte, sans markdown :
     setCurrentScores(null); setResponseCount(0); setWeeklyTrend([]); setTrendDelta(null);
   };
 
-  // ── QR code helpers ──
+  // ── QR code ──
   const participantUrl = `${window.location.origin}/participant?team=${teamId}`;
-
-  const copyLink = () => {
-    navigator.clipboard.writeText(participantUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
+  const copyLink = () => { navigator.clipboard.writeText(participantUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); };
   const downloadQR = () => {
     const canvas = qrRef.current?.querySelector("canvas");
     if (!canvas) return;
-
-    // On crée un canvas plus grand avec le nom de l'équipe + padding
-    const padding = 32;
-    const labelHeight = 48;
+    const padding = 32, labelHeight = 48;
     const finalCanvas = document.createElement("canvas");
     finalCanvas.width  = canvas.width  + padding * 2;
     finalCanvas.height = canvas.height + padding * 2 + labelHeight;
-
     const ctx = finalCanvas.getContext("2d");
-
-    // Fond blanc
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
-
-    // QR code centré
     ctx.drawImage(canvas, padding, padding);
-
-    // Nom de l'équipe en bas
     ctx.fillStyle = "#1e293b";
     ctx.font = "bold 18px system-ui, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(
-      `TPI — Équipe : ${teamId}`,
-      finalCanvas.width / 2,
-      canvas.height + padding + labelHeight - 12
-    );
-
-    // Téléchargement
+    ctx.fillText(`TPI — Équipe : ${teamId}`, finalCanvas.width / 2, canvas.height + padding + labelHeight - 12);
     const link = document.createElement("a");
     link.download = `TPI-QR-${teamId}.png`;
     link.href = finalCanvas.toDataURL("image/png");
     link.click();
   };
 
-  // ── AUTH screen ──
+  // ── Lifecycle ──
+  useEffect(() => {
+    fetchResponses();
+    fetchMembers();
+    fetchResponses().then(() => fetchResults());
+    const channel = supabase
+      .channel(`tpi-responses-live-${teamId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tpi_responses" }, () => { fetchResponses(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [teamId]);
+
+  // ── Auth screen ──
   if (!isCoachAuthenticated) {
     return (
       <main className="participantLayout">
@@ -726,19 +501,13 @@ Réponds UNIQUEMENT en JSON avec cette structure exacte, sans markdown :
           <h2>Connexion coach</h2>
           <p>Entre le code coach pour accéder au dashboard de l'équipe <strong>{teamId}</strong>.</p>
           <input
-            type="password"
-            value={coachPassword}
+            type="password" value={coachPassword}
             onChange={(e) => setCoachPassword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleCoachLogin()}
             placeholder="Code coach"
-            style={{
-              width: "100%", padding: "14px", borderRadius: "14px",
-              border: "1px solid #cbd5e1", marginTop: "12px", marginBottom: "12px", fontSize: "16px",
-            }}
+            style={{ width: "100%", padding: "14px", borderRadius: "14px", border: "1px solid #cbd5e1", marginTop: "12px", marginBottom: "12px", fontSize: "16px" }}
           />
-          <button className="submitButton" onClick={handleCoachLogin}>
-            Accéder au dashboard
-          </button>
+          <button className="submitButton" onClick={handleCoachLogin}>Accéder au dashboard</button>
         </section>
       </main>
     );
@@ -747,10 +516,7 @@ Réponds UNIQUEMENT en JSON avec cette structure exacte, sans markdown :
   if (isLoading) {
     return (
       <main className="coachGrid">
-        <section className="insightCard briefCard">
-          <h2>Chargement...</h2>
-          <p>Récupération des réponses de l'équipe {teamId}.</p>
-        </section>
+        <section className="insightCard briefCard"><h2>Chargement...</h2><p>Récupération des réponses de l'équipe {teamId}.</p></section>
       </main>
     );
   }
@@ -777,888 +543,541 @@ Réponds UNIQUEMENT en JSON avec cette structure exacte, sans markdown :
   }
 
   // ── Calculs dashboard ──
-  const chartData = Object.entries(currentScores).map(([dimension, score]) => ({ dimension, score }));
-  const globalScore = Math.round(chartData.reduce((t, i) => t + i.score, 0) / chartData.length);
-  const strongest = chartData.reduce((best, item) => item.score > best.score ? item : best);
-  const weakest   = chartData.reduce((weak, item) => item.score < weak.score ? item : weak);
-
+  const chartData    = Object.entries(currentScores).map(([dimension, score]) => ({ dimension, score }));
+  const globalScore  = Math.round(chartData.reduce((t, i) => t + i.score, 0) / chartData.length);
+  const strongest    = chartData.reduce((best, item) => item.score > best.score ? item : best);
+  const weakest      = chartData.reduce((weak, item) => item.score < weak.score ? item : weak);
   const dimensionNames = dimensions.map((d) => d.name);
-  const currentWeek = getISOWeekNumber();
+  const currentWeek  = getISOWeekNumber();
+
+  // ── Styles partagés ──
+  const sectionCard = {
+    background: "#fff",
+    borderRadius: "20px",
+    border: "1px solid #e2e8f0",
+    padding: "24px",
+    boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+  };
+
+  const sectionTitle = {
+    fontSize: "11px", fontWeight: "700", textTransform: "uppercase",
+    letterSpacing: "0.08em", marginBottom: "16px",
+  };
 
   // ── RENDER ──
   return (
     <main className="coachGrid">
 
-      {/* ── Score global ── */}
+      {/* ══════════════════════════════════════════
+          HEADER — Score global + insigths
+      ══════════════════════════════════════════ */}
+
       <section className="scoreCard">
         <div className="stepLabel">Score global — {teamId}</div>
-
         <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
           <span className="bigScore">{globalScore}</span>
           <span className="outOf">/100</span>
           {trendDelta !== null && (
-            <span style={{
-              fontSize: "16px", fontWeight: "700", marginLeft: "8px",
-              color: trendDelta >= 0 ? "#4ade80" : "#f87171",
-            }}>
+            <span style={{ fontSize: "16px", fontWeight: "700", marginLeft: "8px", color: trendDelta >= 0 ? "#4ade80" : "#f87171" }}>
               {trendDelta >= 0 ? "↑" : "↓"} {Math.abs(trendDelta)} pts
             </span>
           )}
         </div>
-
         <p>
           {responseCount} réponse(s) — Semaine {currentWeek}
-          {weeklyTrend.length > 1 && (
-            <span style={{ color: "#94a3b8", fontSize: "13px" }}>
-              {" "}· {weeklyTrend.length} semaines de données
-            </span>
-          )}
+          {weeklyTrend.length > 1 && <span style={{ color: "#94a3b8", fontSize: "13px" }}> · {weeklyTrend.length} semaines de données</span>}
         </p>
-
         <div style={{ display: "flex", gap: "10px", marginTop: "20px", flexWrap: "wrap" }}>
-          <button onClick={resetTeam} style={{ background: "#fee2e2", color: "#b91c1c", border: "none", padding: "10px 14px", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
-            Réinitialiser
-          </button>
-          <button onClick={logoutCoach} style={{ background: "rgba(255,255,255,0.08)", color: "#e2e8f0", border: "1px solid rgba(255,255,255,0.2)", padding: "10px 16px", borderRadius: "12px", fontSize: "13px", fontWeight: "500", cursor: "pointer" }}>
-            Se déconnecter
-          </button>
+          <button onClick={resetTeam} style={{ background: "#fee2e2", color: "#b91c1c", border: "none", padding: "10px 14px", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>Réinitialiser</button>
+          <button onClick={logoutCoach} style={{ background: "rgba(255,255,255,0.08)", color: "#e2e8f0", border: "1px solid rgba(255,255,255,0.2)", padding: "10px 16px", borderRadius: "12px", fontSize: "13px", fontWeight: "500", cursor: "pointer" }}>Se déconnecter</button>
         </div>
       </section>
 
-      {/* ── Point fort ── */}
       <section className="insightCard strong">
         <div className="stepLabel">Point fort</div>
         <h2>{strongest.dimension}</h2>
         <p>{strongest.score}/100</p>
       </section>
 
-      {/* ── Priorité ── */}
       <section className="insightCard weak">
         <div className="stepLabel">Priorité</div>
         <h2>{weakest.dimension}</h2>
         <p>{weakest.score}/100</p>
       </section>
 
-      {/* ── Onglets ── */}
-      <section className="insightCard briefCard" style={{ gridColumn: "1 / -1" }}>
-        <div style={{ display: "flex", gap: "8px", marginBottom: "24px", flexWrap: "wrap" }}>
-          {[
-            { id: "dashboard",  label: "Profil semaine" },
-            { id: "evolution",  label: `Évolution (${weeklyTrend.length} sem.)` },
-            { id: "brief",      label: "✦ Brief IA" },
-            { id: "invite",     label: "⬡ Inviter" },
-            { id: "equipe",     label: `👥 Équipe (${members.length})` },
-            { id: "resultats",  label: "⚽ Résultats" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: "8px 18px", borderRadius: "20px", border: "none",
-                fontWeight: "600", fontSize: "13px", cursor: "pointer",
-                background: activeTab === tab.id
-                  ? tab.id === "brief" ? "#7c3aed" : tab.id === "invite" ? "#059669" : tab.id === "equipe" ? "#0891b2" : tab.id === "resultats" ? "#dc2626" : "#2563eb"
-                  : "#f1f5f9",
-                color: activeTab === tab.id ? "#fff" : "#475569",
-                transition: "all 0.2s",
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+      {/* ══════════════════════════════════════════
+          LIGNE 2 — 3 colonnes : Semaine | Équipe | Historique
+      ══════════════════════════════════════════ */}
+      <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1.4fr 1fr 1.4fr", gap: "20px", alignItems: "start" }}>
 
-        {/* ── Tab Dashboard ── */}
-        {activeTab === "dashboard" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
-            <div>
-              <h3 style={{ marginBottom: "12px", fontSize: "14px", color: "#64748b", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>Radar d'équipe</h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <RadarChart data={chartData}>
-                  <PolarGrid />
-                  <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 12 }} />
-                  <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
-                  <Radar name="Score" dataKey="score" stroke="#2563eb" fill="#2563eb" fillOpacity={0.35} />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-            <div>
-              <h3 style={{ marginBottom: "12px", fontSize: "14px", color: "#64748b", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>Détail par dimension</h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="dimension" tick={{ fontSize: 11 }} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="score" radius={[8, 8, 0, 0]}>
-                    {chartData.map((entry) => (
-                      <rect key={entry.dimension} fill={DIMENSION_COLORS[entry.dimension] || "#2563eb"} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+        {/* ── SECTION 1 : CETTE SEMAINE ── */}
+        <section style={sectionCard}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+            <div style={{ ...sectionTitle, color: "#2563eb" }}>📊 Cette semaine</div>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <TabButton id="profil" label="Profil" activeTab={semainneTab} setActiveTab={setSemaineTab} activeColor="#2563eb" />
+              <TabButton id="brief"  label="✦ Brief IA" activeTab={semainneTab} setActiveTab={setSemaineTab} activeColor="#7c3aed" />
             </div>
           </div>
-        )}
 
-        {/* ── Tab Évolution ── */}
-        {activeTab === "evolution" && (
-          <div>
-            {weeklyTrend.length < 2 ? (
-              <div style={{ textAlign: "center", padding: "40px", color: "#94a3b8" }}>
-                <p style={{ fontSize: "16px", fontWeight: "600", marginBottom: "8px" }}>Pas encore assez de données</p>
-                <p style={{ fontSize: "14px" }}>
-                  La courbe d'évolution apparaîtra dès la 2e semaine de réponses.<br />
-                  Actuellement : <strong>{weeklyTrend.length} semaine(s)</strong> de données.
-                </p>
+          {/* ── Profil semaine ── */}
+          {semainneTab === "profil" && (
+            <div>
+              <div style={{ marginBottom: "20px" }}>
+                <div style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "10px" }}>
+                  Radar d'équipe
+                </div>
+                <ResponsiveContainer width="100%" height={220}>
+                  <RadarChart data={chartData}>
+                    <PolarGrid />
+                    <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 11 }} />
+                    <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9 }} />
+                    <Radar name="Score" dataKey="score" stroke="#2563eb" fill="#2563eb" fillOpacity={0.35} />
+                  </RadarChart>
+                </ResponsiveContainer>
               </div>
-            ) : (
-              <>
-                {/* ── Courbe TEI global ── */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
-                  <h3 style={{ fontSize: "14px", color: "#64748b", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Score TEI global — évolution semaine par semaine
-                  </h3>
-                  {results.length > 0 && (
-                    <div style={{ display: "flex", gap: "10px", fontSize: "12px" }}>
-                      {[
-                        { label: "V", color: "#059669", text: "Victoire" },
-                        { label: "N", color: "#d97706", text: "Nul" },
-                        { label: "D", color: "#dc2626", text: "Défaite" },
-                      ].map((item) => (
-                        <div key={item.label} style={{ display: "flex", alignItems: "center", gap: "4px", color: "#64748b" }}>
-                          <div style={{ width: "18px", height: "18px", borderRadius: "50%", background: item.color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "800" }}>
-                            {item.label}
+
+              <div>
+                <div style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "10px" }}>
+                  Scores par dimension
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {chartData.map((item) => (
+                    <div key={item.dimension} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div style={{ width: "90px", fontSize: "12px", fontWeight: "600", color: "#475569", flexShrink: 0 }}>{item.dimension}</div>
+                      <div style={{ flex: 1, height: "8px", background: "#f1f5f9", borderRadius: "99px", overflow: "hidden" }}>
+                        <div style={{ height: "100%", borderRadius: "99px", background: DIMENSION_COLORS[item.dimension] || "#2563eb", width: `${item.score}%`, transition: "width 0.4s ease" }} />
+                      </div>
+                      <div style={{ width: "36px", textAlign: "right", fontSize: "13px", fontWeight: "700", color: item.score >= 70 ? "#059669" : item.score >= 50 ? "#d97706" : "#dc2626" }}>
+                        {item.score}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Brief IA ── */}
+          {semainneTab === "brief" && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
+                <button
+                  onClick={generateBrief}
+                  disabled={isGeneratingBrief}
+                  style={{
+                    padding: "10px 18px", borderRadius: "10px", border: "none",
+                    background: isGeneratingBrief ? "#e2e8f0" : "linear-gradient(135deg, #7c3aed, #2563eb)",
+                    color: isGeneratingBrief ? "#94a3b8" : "#fff",
+                    fontWeight: "700", fontSize: "13px", cursor: isGeneratingBrief ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {isGeneratingBrief ? "Génération..." : brief ? "Regénérer" : "✦ Générer le brief"}
+                </button>
+              </div>
+
+              {!brief && !isGeneratingBrief && (
+                <div style={{ textAlign: "center", padding: "32px 16px", background: "#f8fafc", borderRadius: "14px", border: "2px dashed #e2e8f0" }}>
+                  <div style={{ fontSize: "32px", marginBottom: "8px" }}>✦</div>
+                  <p style={{ fontWeight: "600", color: "#475569", fontSize: "14px", marginBottom: "4px" }}>Prêt à générer le brief</p>
+                  <p style={{ fontSize: "12px", color: "#94a3b8" }}>Synthèse IA + 3 recommandations concrètes.</p>
+                </div>
+              )}
+
+              {isGeneratingBrief && (
+                <div style={{ textAlign: "center", padding: "32px 16px" }}>
+                  <div style={{ fontSize: "28px", marginBottom: "8px", animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</div>
+                  <p style={{ color: "#7c3aed", fontWeight: "600", fontSize: "14px" }}>Analyse en cours...</p>
+                </div>
+              )}
+
+              {brief?.error && (
+                <div style={{ padding: "16px", background: "#fee2e2", borderRadius: "12px", color: "#b91c1c", fontSize: "13px" }}>{brief.error}</div>
+              )}
+
+              {brief && !brief.error && !isGeneratingBrief && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  {brief.isMock && (
+                    <div style={{ padding: "6px 12px", background: "#fef3c7", borderRadius: "8px", fontSize: "11px", color: "#92400e", fontWeight: "600" }}>
+                      ⚠ Aperçu démo — connecte l'API Claude pour des briefs personnalisés
+                    </div>
+                  )}
+                  <div style={{ padding: "18px", background: "linear-gradient(135deg, #eff6ff, #f5f3ff)", borderRadius: "14px", border: "1px solid #ddd6fe" }}>
+                    <div style={{ fontSize: "10px", fontWeight: "700", color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>Synthèse</div>
+                    <p style={{ fontSize: "13px", lineHeight: "1.7", color: "#1e293b" }}>{brief.synthese}</p>
+                  </div>
+                  <div style={{ padding: "18px", background: "#f8fafc", borderRadius: "14px", border: "1px solid #e2e8f0" }}>
+                    <div style={{ fontSize: "10px", fontWeight: "700", color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Recommandations</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {brief.recommandations?.map((reco, i) => (
+                        <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                          <div style={{ minWidth: "24px", height: "24px", borderRadius: "50%", background: "#2563eb", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: "700", flexShrink: 0 }}>{i + 1}</div>
+                          <p style={{ fontSize: "13px", lineHeight: "1.6", color: "#334155", margin: 0 }}>{reco}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* ── SECTION 2 : MON ÉQUIPE ── */}
+        <section style={sectionCard}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+            <div style={{ ...sectionTitle, color: "#0891b2" }}>👥 Mon équipe</div>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <TabButton id="membres" label={`Membres (${members.length})`} activeTab={equipeTab} setActiveTab={setEquipeTab} activeColor="#0891b2" />
+              <TabButton id="inviter" label="QR code" activeTab={equipeTab} setActiveTab={setEquipeTab} activeColor="#059669" />
+            </div>
+          </div>
+
+          {/* ── Membres ── */}
+          {equipeTab === "membres" && (
+            <div>
+              {/* Participation */}
+              {members.length > 0 && (
+                <div style={{ padding: "12px 14px", background: "#f0f9ff", borderRadius: "12px", border: "1px solid #bae6fd", marginBottom: "16px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <span style={{ fontSize: "12px", fontWeight: "600", color: "#0369a1" }}>Participation cette semaine</span>
+                    <span style={{ fontSize: "13px", fontWeight: "700", color: respondedThisWeek.length === members.length ? "#059669" : "#d97706" }}>
+                      {respondedThisWeek.length}/{members.length} ({Math.round((respondedThisWeek.length / members.length) * 100)}%)
+                    </span>
+                  </div>
+                  <div style={{ height: "6px", background: "#e0f2fe", borderRadius: "99px", overflow: "hidden" }}>
+                    <div style={{ height: "100%", borderRadius: "99px", background: respondedThisWeek.length === members.length ? "#059669" : "#0891b2", width: `${Math.round((respondedThisWeek.length / members.length) * 100)}%`, transition: "width 0.4s ease" }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Ajout membre */}
+              <div style={{ display: "flex", gap: "6px", marginBottom: "14px" }}>
+                <input
+                  type="text" value={newMemberName}
+                  onChange={(e) => setNewMemberName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && newMemberName.trim() && addMember()}
+                  placeholder="Ajouter un prénom..."
+                  style={{ flex: 1, padding: "10px 12px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none" }}
+                />
+                <button
+                  onClick={addMember}
+                  disabled={!newMemberName.trim() || isSavingMember}
+                  style={{ padding: "10px 14px", borderRadius: "10px", border: "none", background: newMemberName.trim() ? "#0891b2" : "#e2e8f0", color: newMemberName.trim() ? "#fff" : "#94a3b8", fontWeight: "700", fontSize: "13px", cursor: newMemberName.trim() ? "pointer" : "not-allowed", whiteSpace: "nowrap" }}
+                >
+                  {isSavingMember ? "..." : "+"}
+                </button>
+              </div>
+
+              {/* Liste */}
+              {members.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "32px", background: "#f8fafc", borderRadius: "14px", border: "2px dashed #e2e8f0" }}>
+                  <p style={{ fontWeight: "600", color: "#475569", fontSize: "14px", marginBottom: "4px" }}>Aucun membre</p>
+                  <p style={{ fontSize: "12px", color: "#94a3b8" }}>Ajoute les prénoms pour suivre la participation.</p>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "340px", overflowY: "auto" }}>
+                  {members.map((member) => {
+                    const hasResponded = respondedThisWeek.includes(member.name.toLowerCase().trim());
+                    return (
+                      <div key={member.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "10px", background: hasResponded ? "#f0fdf4" : "#fafafa", border: `1px solid ${hasResponded ? "#bbf7d0" : "#e2e8f0"}` }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <div style={{ width: "30px", height: "30px", borderRadius: "50%", background: hasResponded ? "#059669" : "#cbd5e1", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700", fontSize: "12px", flexShrink: 0 }}>
+                            {member.name.charAt(0).toUpperCase()}
                           </div>
+                          <span style={{ fontWeight: "600", fontSize: "13px", color: "#1e293b" }}>{member.name}</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ padding: "3px 8px", borderRadius: "20px", fontSize: "11px", fontWeight: "600", background: hasResponded ? "#dcfce7" : "#fef3c7", color: hasResponded ? "#15803d" : "#92400e" }}>
+                            {hasResponded ? "✓" : "—"}
+                          </span>
+                          <button
+                            onClick={() => removeMember(member.id)}
+                            style={{ width: "24px", height: "24px", borderRadius: "50%", border: "none", background: "transparent", color: "#cbd5e1", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                            onMouseEnter={(e) => { e.target.style.color = "#ef4444"; e.target.style.background = "#fee2e2"; }}
+                            onMouseLeave={(e) => { e.target.style.color = "#cbd5e1"; e.target.style.background = "transparent"; }}
+                          >×</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Inviter / QR code ── */}
+          {equipeTab === "inviter" && (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "20px" }}>
+              <div
+                ref={qrRef}
+                style={{ padding: "20px", background: "#fff", borderRadius: "18px", boxShadow: "0 4px 24px rgba(0,0,0,0.10)", border: "1px solid #e2e8f0", display: "inline-flex", flexDirection: "column", alignItems: "center", gap: "12px" }}
+              >
+                <QRCodeCanvas value={participantUrl} size={160} bgColor="#ffffff" fgColor="#0f172a" level="H" includeMargin={false} />
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>TPI — Équipe</div>
+                  <div style={{ fontSize: "15px", fontWeight: "800", color: "#1e293b", marginTop: "2px" }}>{teamId}</div>
+                </div>
+              </div>
+
+              <div style={{ width: "100%" }}>
+                <div style={{ fontSize: "11px", fontWeight: "600", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "6px" }}>Lien participant</div>
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <div style={{ flex: 1, padding: "10px 12px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0", fontSize: "12px", color: "#475569", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {participantUrl}
+                  </div>
+                  <button
+                    onClick={copyLink}
+                    style={{ padding: "10px 14px", borderRadius: "10px", border: "none", background: copied ? "#dcfce7" : "#f1f5f9", color: copied ? "#15803d" : "#475569", fontWeight: "600", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}
+                  >
+                    {copied ? "✓ Copié" : "Copier"}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={downloadQR}
+                style={{ width: "100%", padding: "12px", borderRadius: "12px", border: "none", background: "linear-gradient(135deg, #059669, #0891b2)", color: "#fff", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}
+              >
+                ↓ Télécharger le QR code
+              </button>
+            </div>
+          )}
+        </section>
+
+        {/* ── SECTION 3 : HISTORIQUE & PERFORMANCE ── */}
+        <section style={sectionCard}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+            <div style={{ ...sectionTitle, color: "#dc2626" }}>📈 Historique</div>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <TabButton id="evolution"  label={`Évolution (${weeklyTrend.length})`} activeTab={historiqueTab} setActiveTab={setHistoriqueTab} activeColor="#2563eb" />
+              <TabButton id="resultats"  label="⚽ Matchs" activeTab={historiqueTab} setActiveTab={setHistoriqueTab} activeColor="#dc2626" />
+            </div>
+          </div>
+
+          {/* ── Évolution ── */}
+          {historiqueTab === "evolution" && (
+            <div>
+              {weeklyTrend.length < 2 ? (
+                <div style={{ textAlign: "center", padding: "40px 16px", color: "#94a3b8" }}>
+                  <p style={{ fontSize: "14px", fontWeight: "600", marginBottom: "6px" }}>Pas encore assez de données</p>
+                  <p style={{ fontSize: "12px" }}>La courbe apparaîtra à partir de la 2e semaine.<br />Actuellement : <strong>{weeklyTrend.length} semaine(s)</strong>.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Légende matchs */}
+                  {results.length > 0 && (
+                    <div style={{ display: "flex", gap: "10px", marginBottom: "12px", fontSize: "11px" }}>
+                      {[{ label: "V", color: "#059669", text: "Victoire" }, { label: "N", color: "#d97706", text: "Nul" }, { label: "D", color: "#dc2626", text: "Défaite" }].map((item) => (
+                        <div key={item.label} style={{ display: "flex", alignItems: "center", gap: "4px", color: "#64748b" }}>
+                          <div style={{ width: "16px", height: "16px", borderRadius: "50%", background: item.color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", fontWeight: "800" }}>{item.label}</div>
                           {item.text}
                         </div>
                       ))}
                     </div>
                   )}
-                </div>
-                <ResponsiveContainer width="100%" height={240}>
-                  <LineChart data={weeklyTrend} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                    <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <ReferenceLine y={70} stroke="#f59e0b" strokeDasharray="4 4" label={{ value: "Seuil 70", fill: "#f59e0b", fontSize: 11 }} />
-                    <Line
-                      type="monotone" dataKey="TEI" stroke="#2563eb" strokeWidth={3}
-                      connectNulls={false}
-                      dot={(props) => <ResultDot {...props} results={results} />}
-                      activeDot={{ r: 7 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
 
-                {/* ── Courbe par dimension ── */}
-                <h3 style={{ marginTop: "32px", marginBottom: "16px", fontSize: "14px", color: "#64748b", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  Détail par dimension
-                </h3>
-                <ResponsiveContainer width="100%" height={260}>
-                  <LineChart data={weeklyTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                    <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "12px" }} />
-                    {dimensionNames.map((dim) => (
-                      <Line
-                        key={dim}
-                        type="monotone"
-                        dataKey={dim}
-                        stroke={DIMENSION_COLORS[dim] || "#94a3b8"}
-                        strokeWidth={2}
-                        dot={{ r: 4 }}
-                        activeDot={{ r: 6 }}
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
+                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>TEI global</div>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <LineChart data={weeklyTrend} margin={{ top: 16, right: 16, left: -16, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <ReferenceLine y={70} stroke="#f59e0b" strokeDasharray="4 4" label={{ value: "70", fill: "#f59e0b", fontSize: 10 }} />
+                      <Line type="monotone" dataKey="TEI" stroke="#2563eb" strokeWidth={3} connectNulls={false} dot={(props) => <ResultDot {...props} results={results} />} activeDot={{ r: 6 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
 
-                {/* ── Tableau récap ── */}
-                <h3 style={{ marginTop: "32px", marginBottom: "12px", fontSize: "14px", color: "#64748b", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  Historique
-                </h3>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-                    <thead>
-                      <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
-                        <th style={{ padding: "8px 12px", textAlign: "left", color: "#64748b", fontWeight: "600" }}>Semaine</th>
-                        <th style={{ padding: "8px 12px", textAlign: "center", color: "#2563eb", fontWeight: "700" }}>TEI</th>
-                        {dimensionNames.map((dim) => (
-                          <th key={dim} style={{ padding: "8px 12px", textAlign: "center", color: "#64748b", fontWeight: "600" }}>{dim}</th>
-                        ))}
-                        <th style={{ padding: "8px 12px", textAlign: "center", color: "#64748b", fontWeight: "600" }}>Réponses</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...weeklyTrend].reverse().map((row, i) => (
-                        <tr key={row.key} style={{ borderBottom: "1px solid #f1f5f9", background: i === 0 ? "#eff6ff" : "transparent" }}>
-                          <td style={{ padding: "10px 12px", fontWeight: i === 0 ? "700" : "400" }}>
-                            {row.label} {i === 0 && <span style={{ fontSize: "11px", color: "#2563eb" }}>(actuelle)</span>}
-                          </td>
-                          <td style={{ padding: "10px 12px", textAlign: "center", fontWeight: "700", color: row.TEI >= 70 ? "#059669" : row.TEI >= 50 ? "#d97706" : "#dc2626" }}>
-                            {row.TEI}
-                          </td>
-                          {dimensionNames.map((dim) => (
-                            <td key={dim} style={{ padding: "10px 12px", textAlign: "center", color: "#475569" }}>
-                              {row[dim] ?? "—"}
-                            </td>
-                          ))}
-                          <td style={{ padding: "10px 12px", textAlign: "center", color: "#94a3b8" }}>
-                            {row.responseCount}
-                          </td>
-                        </tr>
+                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "20px 0 8px" }}>Par dimension</div>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <LineChart data={weeklyTrend} margin={{ top: 5, right: 16, left: -16, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
+                      {dimensionNames.map((dim) => (
+                        <Line key={dim} type="monotone" dataKey={dim} stroke={DIMENSION_COLORS[dim] || "#94a3b8"} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-        {/* ── Tab Brief IA ── */}
-        {activeTab === "brief" && (
-          <div>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "24px", gap: "16px", flexWrap: "wrap" }}>
-              <div>
-                <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#1e293b", marginBottom: "4px" }}>Brief coach IA</h3>
-                <p style={{ fontSize: "13px", color: "#94a3b8" }}>
-                  Synthèse automatique de l'état de l'équipe + recommandations concrètes.
-                  {!import.meta.env.VITE_ANTHROPIC_API_KEY && (
-                    <span style={{ color: "#d97706", fontWeight: "600" }}> [Mode démo — sans clé API]</span>
-                  )}
-                </p>
-              </div>
-              <button
-                onClick={generateBrief}
-                disabled={isGeneratingBrief}
-                style={{
-                  padding: "12px 24px", borderRadius: "12px", border: "none",
-                  background: isGeneratingBrief ? "#e2e8f0" : "linear-gradient(135deg, #7c3aed, #2563eb)",
-                  color: isGeneratingBrief ? "#94a3b8" : "#fff",
-                  fontWeight: "700", fontSize: "14px", cursor: isGeneratingBrief ? "not-allowed" : "pointer",
-                  transition: "all 0.2s", whiteSpace: "nowrap",
-                }}
-              >
-                {isGeneratingBrief ? "Génération en cours..." : brief ? "Regénérer le brief" : "✦ Générer le brief"}
-              </button>
+                    </LineChart>
+                  </ResponsiveContainer>
+
+                  {/* Tableau récap compact */}
+                  <div style={{ marginTop: "20px", overflowX: "auto" }}>
+                    <div style={{ fontSize: "11px", fontWeight: "600", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>Historique</div>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                      <thead>
+                        <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+                          <th style={{ padding: "6px 8px", textAlign: "left", color: "#64748b", fontWeight: "600" }}>Sem.</th>
+                          <th style={{ padding: "6px 8px", textAlign: "center", color: "#2563eb", fontWeight: "700" }}>TEI</th>
+                          {dimensionNames.map((dim) => (
+                            <th key={dim} style={{ padding: "6px 8px", textAlign: "center", color: "#64748b", fontWeight: "600" }}>{dim.slice(0, 4)}.</th>
+                          ))}
+                          <th style={{ padding: "6px 8px", textAlign: "center", color: "#64748b", fontWeight: "600" }}>Rép.</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...weeklyTrend].reverse().map((row, i) => (
+                          <tr key={row.key} style={{ borderBottom: "1px solid #f1f5f9", background: i === 0 ? "#eff6ff" : "transparent" }}>
+                            <td style={{ padding: "8px", fontWeight: i === 0 ? "700" : "400" }}>{row.label}{i === 0 && <span style={{ fontSize: "10px", color: "#2563eb" }}> ←</span>}</td>
+                            <td style={{ padding: "8px", textAlign: "center", fontWeight: "700", color: row.TEI >= 70 ? "#059669" : row.TEI >= 50 ? "#d97706" : "#dc2626" }}>{row.TEI ?? "—"}</td>
+                            {dimensionNames.map((dim) => (
+                              <td key={dim} style={{ padding: "8px", textAlign: "center", color: "#475569" }}>{row[dim] ?? "—"}</td>
+                            ))}
+                            <td style={{ padding: "8px", textAlign: "center", color: "#94a3b8" }}>{row.responseCount}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </div>
+          )}
 
-            {/* État initial */}
-            {!brief && !isGeneratingBrief && (
-              <div style={{ textAlign: "center", padding: "48px 24px", background: "#f8fafc", borderRadius: "16px", border: "2px dashed #e2e8f0" }}>
-                <div style={{ fontSize: "40px", marginBottom: "12px" }}>✦</div>
-                <p style={{ fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Prêt à générer le brief</p>
-                <p style={{ fontSize: "13px", color: "#94a3b8" }}>Clique sur le bouton pour obtenir une synthèse de l'état de l'équipe et 3 recommandations concrètes.</p>
-              </div>
-            )}
-
-            {/* Loading */}
-            {isGeneratingBrief && (
-              <div style={{ textAlign: "center", padding: "48px 24px" }}>
-                <div style={{ fontSize: "32px", marginBottom: "12px", animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</div>
-                <p style={{ color: "#7c3aed", fontWeight: "600" }}>Analyse en cours...</p>
-              </div>
-            )}
-
-            {/* Erreur */}
-            {brief?.error && (
-              <div style={{ padding: "20px", background: "#fee2e2", borderRadius: "12px", color: "#b91c1c" }}>
-                {brief.error}
-              </div>
-            )}
-
-            {/* Résultat */}
-            {brief && !brief.error && !isGeneratingBrief && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-
-                {/* Badge démo */}
-                {brief.isMock && (
-                  <div style={{ padding: "8px 14px", background: "#fef3c7", borderRadius: "8px", fontSize: "12px", color: "#92400e", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "6px", alignSelf: "flex-start" }}>
-                    ⚠ Aperçu démo — connecte l'API Claude pour des briefs personnalisés
-                  </div>
-                )}
-
-                {/* Synthèse */}
-                <div style={{ padding: "24px", background: "linear-gradient(135deg, #eff6ff, #f5f3ff)", borderRadius: "16px", border: "1px solid #ddd6fe" }}>
-                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>
-                    Synthèse de l'équipe
-                  </div>
-                  <p style={{ fontSize: "15px", lineHeight: "1.7", color: "#1e293b" }}>
-                    {brief.synthese}
-                  </p>
+          {/* ── Résultats ── */}
+          {historiqueTab === "resultats" && (
+            <div>
+              {/* Import FIBA */}
+              <div style={{ padding: "16px", background: "linear-gradient(135deg, #eff6ff, #f5f3ff)", borderRadius: "14px", border: "1px solid #ddd6fe", marginBottom: "16px" }}>
+                <div style={{ fontSize: "11px", fontWeight: "700", color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "12px" }}>
+                  ✦ Import FIBA Box Score
+                  {!import.meta.env.VITE_ANTHROPIC_API_KEY && <span style={{ marginLeft: "6px", fontSize: "10px", color: "#d97706", background: "#fef3c7", padding: "2px 6px", borderRadius: "4px", fontWeight: "600" }}>Mode démo</span>}
                 </div>
-
-                {/* Recommandations */}
-                <div style={{ padding: "24px", background: "#f8fafc", borderRadius: "16px", border: "1px solid #e2e8f0" }}>
-                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "16px" }}>
-                    Recommandations pour cette semaine
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                    {brief.recommandations?.map((reco, i) => (
-                      <div key={i} style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                        <div style={{ minWidth: "28px", height: "28px", borderRadius: "50%", background: "#2563eb", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "700", flexShrink: 0 }}>
-                          {i + 1}
-                        </div>
-                        <p style={{ fontSize: "14px", lineHeight: "1.6", color: "#334155", margin: 0 }}>{reco}</p>
-                      </div>
-                    ))}
-                  </div>
+                <div style={{ marginBottom: "8px" }}>
+                  <label style={{ fontSize: "11px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "4px" }}>Nom de l'équipe (sur la feuille FIBA)</label>
+                  <input type="text" value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="ex: JDA DIJON" style={{ width: "100%", padding: "8px 10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none" }} />
                 </div>
-
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Tab Inviter ── */}
-        {activeTab === "invite" && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "28px", padding: "8px 0" }}>
-
-            {/* Titre */}
-            <div style={{ textAlign: "center" }}>
-              <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#1e293b", marginBottom: "6px" }}>
-                Inviter l'équipe <span style={{ color: "#059669" }}>{teamId}</span>
-              </h3>
-              <p style={{ fontSize: "13px", color: "#94a3b8" }}>
-                Partage ce QR code ou ce lien — les participants accèdent directement au questionnaire, sans inscription.
-              </p>
-            </div>
-
-            {/* QR code */}
-            <div
-              ref={qrRef}
-              style={{
-                padding: "24px", background: "#fff",
-                borderRadius: "20px", boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
-                border: "1px solid #e2e8f0", display: "inline-flex",
-                flexDirection: "column", alignItems: "center", gap: "16px",
-              }}
-            >
-              <QRCodeCanvas
-                value={participantUrl}
-                size={200}
-                bgColor="#ffffff"
-                fgColor="#0f172a"
-                level="H"
-                includeMargin={false}
-              />
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  TPI — Équipe
-                </div>
-                <div style={{ fontSize: "16px", fontWeight: "800", color: "#1e293b", marginTop: "2px" }}>
-                  {teamId}
-                </div>
-              </div>
-            </div>
-
-            {/* Lien copiable */}
-            <div style={{ width: "100%", maxWidth: "480px" }}>
-              <div style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>
-                Lien participant
-              </div>
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <div style={{
-                  flex: 1, padding: "12px 14px", background: "#f8fafc",
-                  borderRadius: "10px", border: "1px solid #e2e8f0",
-                  fontSize: "13px", color: "#475569", fontFamily: "monospace",
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                }}>
-                  {participantUrl}
+                <div style={{ marginBottom: "10px" }}>
+                  <label style={{ fontSize: "11px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "4px" }}>Photo ou PDF de la feuille</label>
+                  <input type="file" accept="image/*,application/pdf" onChange={(e) => { setImportFile(e.target.files[0]); setExtractedStats(null); setImportError(null); }} style={{ fontSize: "12px", color: "#475569" }} />
+                  {importFile && <div style={{ marginTop: "4px", fontSize: "11px", color: "#7c3aed", fontWeight: "600" }}>✓ {importFile.name}</div>}
                 </div>
                 <button
-                  onClick={copyLink}
-                  style={{
-                    padding: "12px 18px", borderRadius: "10px", border: "none",
-                    background: copied ? "#dcfce7" : "#f1f5f9",
-                    color: copied ? "#15803d" : "#475569",
-                    fontWeight: "600", fontSize: "13px", cursor: "pointer",
-                    transition: "all 0.2s", whiteSpace: "nowrap",
-                  }}
+                  onClick={extractStatsFromSheet}
+                  disabled={!importFile || !teamName.trim() || isExtracting}
+                  style={{ padding: "10px 18px", borderRadius: "10px", border: "none", background: importFile && teamName.trim() ? "linear-gradient(135deg, #7c3aed, #2563eb)" : "#e2e8f0", color: importFile && teamName.trim() ? "#fff" : "#94a3b8", fontWeight: "700", fontSize: "12px", cursor: importFile && teamName.trim() ? "pointer" : "not-allowed" }}
                 >
-                  {copied ? "✓ Copié !" : "Copier"}
+                  {isExtracting ? "Extraction..." : "✦ Extraire"}
                 </button>
-              </div>
-            </div>
-
-            {/* Bouton télécharger */}
-            <button
-              onClick={downloadQR}
-              style={{
-                padding: "14px 28px", borderRadius: "12px", border: "none",
-                background: "linear-gradient(135deg, #059669, #0891b2)",
-                color: "#fff", fontWeight: "700", fontSize: "14px",
-                cursor: "pointer", display: "flex", alignItems: "center", gap: "8px",
-              }}
-            >
-              ↓ Télécharger le QR code (PNG)
-            </button>
-
-          </div>
-        )}
-
-        {/* ── Tab Équipe ── */}
-        {activeTab === "equipe" && (
-          <div>
-            {/* Header + stats */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
-              <div>
-                <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#1e293b", marginBottom: "4px" }}>
-                  Membres de l'équipe
-                </h3>
-                <p style={{ fontSize: "13px", color: "#94a3b8" }}>
-                  {members.length} membre{members.length > 1 ? "s" : ""} enregistré{members.length > 1 ? "s" : ""} —{" "}
-                  <span style={{ color: "#059669", fontWeight: "600" }}>
-                    {respondedThisWeek.length} ont répondu cette semaine
-                  </span>
-                  {members.length > 0 && (
-                    <span style={{ color: respondedThisWeek.length === members.length ? "#059669" : "#f59e0b", fontWeight: "600" }}>
-                      {" "}({Math.round((respondedThisWeek.length / members.length) * 100)}%)
-                    </span>
-                  )}
-                </p>
-              </div>
-
-              {/* Barre de participation */}
-              {members.length > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <div style={{ width: "120px", height: "8px", background: "#e2e8f0", borderRadius: "99px", overflow: "hidden" }}>
-                    <div style={{
-                      height: "100%", borderRadius: "99px",
-                      background: respondedThisWeek.length === members.length ? "#059669" : "#f59e0b",
-                      width: `${Math.round((respondedThisWeek.length / members.length) * 100)}%`,
-                      transition: "width 0.4s ease",
-                    }} />
-                  </div>
-                  <span style={{ fontSize: "13px", fontWeight: "700", color: "#475569" }}>
-                    {respondedThisWeek.length}/{members.length}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Ajouter un membre */}
-            <div style={{ display: "flex", gap: "8px", marginBottom: "24px" }}>
-              <input
-                type="text"
-                value={newMemberName}
-                onChange={(e) => setNewMemberName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && newMemberName.trim() && addMember()}
-                placeholder="Ajouter un prénom... (ex: Thomas)"
-                style={{
-                  flex: 1, padding: "12px 14px", borderRadius: "12px",
-                  border: "1px solid #cbd5e1", fontSize: "14px", outline: "none",
-                }}
-              />
-              <button
-                onClick={addMember}
-                disabled={!newMemberName.trim() || isSavingMember}
-                style={{
-                  padding: "12px 20px", borderRadius: "12px", border: "none",
-                  background: newMemberName.trim() ? "#0891b2" : "#e2e8f0",
-                  color: newMemberName.trim() ? "#fff" : "#94a3b8",
-                  fontWeight: "700", fontSize: "14px", cursor: newMemberName.trim() ? "pointer" : "not-allowed",
-                  transition: "all 0.2s", whiteSpace: "nowrap",
-                }}
-              >
-                {isSavingMember ? "..." : "+ Ajouter"}
-              </button>
-            </div>
-
-            {/* Liste des membres */}
-            {members.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "40px", background: "#f8fafc", borderRadius: "16px", border: "2px dashed #e2e8f0" }}>
-                <p style={{ fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Aucun membre enregistré</p>
-                <p style={{ fontSize: "13px", color: "#94a3b8" }}>Ajoute les prénoms de ton équipe pour suivre la participation.</p>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {members.map((member) => {
-                  const hasResponded = respondedThisWeek.includes(member.name.toLowerCase().trim());
-                  return (
-                    <div
-                      key={member.id}
-                      style={{
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
-                        padding: "14px 16px", borderRadius: "12px",
-                        background: hasResponded ? "#f0fdf4" : "#fafafa",
-                        border: `1px solid ${hasResponded ? "#bbf7d0" : "#e2e8f0"}`,
-                        transition: "all 0.2s",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        {/* Avatar initiale */}
-                        <div style={{
-                          width: "36px", height: "36px", borderRadius: "50%",
-                          background: hasResponded ? "#059669" : "#cbd5e1",
-                          color: "#fff", display: "flex", alignItems: "center",
-                          justifyContent: "center", fontWeight: "700", fontSize: "14px",
-                          flexShrink: 0,
-                        }}>
-                          {member.name.charAt(0).toUpperCase()}
-                        </div>
-                        <span style={{ fontWeight: "600", fontSize: "15px", color: "#1e293b" }}>
-                          {member.name}
-                        </span>
+                {importError && <div style={{ marginTop: "8px", padding: "10px", background: "#fee2e2", borderRadius: "8px", color: "#b91c1c", fontSize: "12px" }}>⚠ {importError}</div>}
+                {extractedStats && !isExtracting && (
+                  <div style={{ marginTop: "12px", padding: "12px", background: "#fff", borderRadius: "10px", border: "1px solid #ddd6fe" }}>
+                    <div style={{ fontSize: "11px", fontWeight: "700", color: "#7c3aed", marginBottom: "8px" }}>Stats extraites — {extractedStats.team_name}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                      <div style={{ padding: "4px 12px", borderRadius: "20px", fontWeight: "800", fontSize: "15px", background: extractedStats.outcome === "win" ? "#dcfce7" : extractedStats.outcome === "loss" ? "#fee2e2" : "#fef3c7", color: extractedStats.outcome === "win" ? "#059669" : extractedStats.outcome === "loss" ? "#dc2626" : "#d97706" }}>
+                        {extractedStats.score_us} — {extractedStats.score_them}
                       </div>
-
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        {/* Badge statut */}
-                        <span style={{
-                          padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "600",
-                          background: hasResponded ? "#dcfce7" : "#fef3c7",
-                          color: hasResponded ? "#15803d" : "#92400e",
-                        }}>
-                          {hasResponded ? "✓ Répondu" : "En attente"}
-                        </span>
-
-                        {/* Supprimer */}
-                        <button
-                          onClick={() => removeMember(member.id)}
-                          style={{
-                            width: "28px", height: "28px", borderRadius: "50%",
-                            border: "none", background: "transparent",
-                            color: "#cbd5e1", cursor: "pointer", fontSize: "16px",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            transition: "all 0.2s",
-                          }}
-                          onMouseEnter={(e) => { e.target.style.color = "#ef4444"; e.target.style.background = "#fee2e2"; }}
-                          onMouseLeave={(e) => { e.target.style.color = "#cbd5e1"; e.target.style.background = "transparent"; }}
-                        >
-                          ×
-                        </button>
-                      </div>
+                      <span style={{ fontSize: "12px", color: "#64748b" }}>vs {extractedStats.opponent}</span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-      </section>
-
-      <section className="insightCard briefCard" style={{ gridColumn: "1 / -1" }}>
-        {/* ── Tab Résultats ── */}
-        {activeTab === "resultats" && (
-          <div>
-            <div style={{ marginBottom: "24px" }}>
-              <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#1e293b", marginBottom: "4px" }}>
-                Résultats des matchs
-              </h3>
-              <p style={{ fontSize: "13px", color: "#94a3b8" }}>
-                Saisis manuellement ou importe une feuille FIBA Box Score.
-              </p>
-            </div>
-
-            {/* ── Section import ── */}
-            <div style={{ padding: "20px", background: "linear-gradient(135deg, #eff6ff, #f5f3ff)", borderRadius: "16px", border: "1px solid #ddd6fe", marginBottom: "24px" }}>
-              <div style={{ fontSize: "13px", fontWeight: "700", color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "16px" }}>
-                ✦ Import automatique — Feuille FIBA Box Score
-                {!import.meta.env.VITE_ANTHROPIC_API_KEY && (
-                  <span style={{ marginLeft: "8px", fontSize: "11px", color: "#d97706", background: "#fef3c7", padding: "2px 8px", borderRadius: "6px", fontWeight: "600" }}>
-                    Mode démo
-                  </span>
-                )}
-              </div>
-
-              {/* Nom de l'équipe */}
-              <div style={{ marginBottom: "12px" }}>
-                <label style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "6px" }}>
-                  Nom de ton équipe (tel qu'affiché sur la feuille FIBA)
-                </label>
-                <input
-                  type="text"
-                  value={teamName}
-                  onChange={(e) => setTeamName(e.target.value)}
-                  placeholder="ex: JDA DIJON"
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "14px", outline: "none" }}
-                />
-              </div>
-
-              {/* Upload fichier */}
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "6px" }}>
-                  Photo ou PDF de la feuille de match
-                </label>
-                <input
-                  type="file"
-                  accept="image/*,application/pdf"
-                  onChange={(e) => { setImportFile(e.target.files[0]); setExtractedStats(null); setImportError(null); }}
-                  style={{ fontSize: "13px", color: "#475569" }}
-                />
-                {importFile && (
-                  <div style={{ marginTop: "6px", fontSize: "12px", color: "#7c3aed", fontWeight: "600" }}>
-                    ✓ {importFile.name}
+                    {extractedStats.stats && (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: "6px", marginBottom: "10px" }}>
+                        {[
+                          { label: "Points", value: extractedStats.stats.points },
+                          { label: "Rebonds", value: extractedStats.stats.rebonds_total },
+                          { label: "Passes déc.", value: extractedStats.stats.passes_decisives },
+                          { label: "Balles perdues", value: extractedStats.stats.balles_perdues },
+                          { label: "Tirs 2pts", value: extractedStats.stats.tirs_2pts },
+                          { label: "Tirs 3pts", value: extractedStats.stats.tirs_3pts },
+                        ].filter(s => s.value != null).map((stat) => (
+                          <div key={stat.label} style={{ padding: "6px 8px", background: "#f8fafc", borderRadius: "6px", fontSize: "11px" }}>
+                            <div style={{ color: "#94a3b8", marginBottom: "1px" }}>{stat.label}</div>
+                            <div style={{ fontWeight: "700", color: "#1e293b" }}>{stat.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <button onClick={saveResultWithStats} disabled={isSavingResult} style={{ padding: "10px 18px", borderRadius: "10px", border: "none", background: "#059669", color: "#fff", fontWeight: "700", fontSize: "12px", cursor: "pointer" }}>
+                      {isSavingResult ? "Enregistrement..." : "✓ Enregistrer ce résultat"}
+                    </button>
                   </div>
                 )}
               </div>
 
-              <button
-                onClick={extractStatsFromSheet}
-                disabled={!importFile || !teamName.trim() || isExtracting}
-                style={{
-                  padding: "12px 24px", borderRadius: "12px", border: "none",
-                  background: importFile && teamName.trim() ? "linear-gradient(135deg, #7c3aed, #2563eb)" : "#e2e8f0",
-                  color: importFile && teamName.trim() ? "#fff" : "#94a3b8",
-                  fontWeight: "700", fontSize: "14px",
-                  cursor: importFile && teamName.trim() ? "pointer" : "not-allowed",
-                }}
-              >
-                {isExtracting ? "Extraction en cours..." : "✦ Extraire les stats"}
-              </button>
-
-              {importError && (
-                <div style={{ marginTop: "12px", padding: "12px", background: "#fee2e2", borderRadius: "10px", color: "#b91c1c", fontSize: "13px" }}>
-                  ⚠ {importError}
+              {/* Formulaire saisie manuelle */}
+              <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "14px", border: "1px solid #e2e8f0", marginBottom: "16px" }}>
+                <div style={{ fontSize: "11px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "12px" }}>
+                  {editingResultId ? "Modifier le résultat" : "Saisie manuelle"}
                 </div>
-              )}
-
-              {/* Résultat extraction */}
-              {extractedStats && !isExtracting && (
-                <div style={{ marginTop: "16px", padding: "16px", background: "#fff", borderRadius: "12px", border: "1px solid #ddd6fe" }}>
-                  <div style={{ fontSize: "12px", fontWeight: "700", color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "12px" }}>
-                    Stats extraites — {extractedStats.team_name}
+                <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: "11px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "4px" }}>Adversaire</label>
+                    <input type="text" value={resultForm.opponent} onChange={(e) => setResultForm({ ...resultForm, opponent: e.target.value })} placeholder="ex: FC Lyon" style={{ width: "100%", padding: "8px 10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none" }} />
                   </div>
-
-                  {/* Score */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
-                    <div style={{
-                      padding: "6px 16px", borderRadius: "20px", fontWeight: "800", fontSize: "18px",
-                      background: extractedStats.outcome === "win" ? "#dcfce7" : extractedStats.outcome === "loss" ? "#fee2e2" : "#fef3c7",
-                      color: extractedStats.outcome === "win" ? "#059669" : extractedStats.outcome === "loss" ? "#dc2626" : "#d97706",
-                    }}>
-                      {extractedStats.score_us} — {extractedStats.score_them}
-                    </div>
-                    <span style={{ fontSize: "13px", color: "#64748b" }}>vs {extractedStats.opponent}</span>
+                  <div>
+                    <label style={{ fontSize: "11px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "4px" }}>Date</label>
+                    <input type="date" value={resultForm.match_date} onChange={(e) => setResultForm({ ...resultForm, match_date: e.target.value })} style={{ padding: "8px 10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", cursor: "pointer" }} />
                   </div>
-
-                  {/* Stats grid */}
-                  {extractedStats.stats && (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "8px" }}>
-                      {[
-                        { label: "Points", value: extractedStats.stats.points },
-                        { label: "Rebonds", value: extractedStats.stats.rebonds_total },
-                        { label: "Passes déc.", value: extractedStats.stats.passes_decisives },
-                        { label: "Balles perdues", value: extractedStats.stats.balles_perdues },
-                        { label: "Interceptions", value: extractedStats.stats.interceptions },
-                        { label: "Tirs 2pts", value: extractedStats.stats.tirs_2pts },
-                        { label: "Tirs 3pts", value: extractedStats.stats.tirs_3pts },
-                        { label: "Lancers francs", value: extractedStats.stats.lancer_francs },
-                        { label: "Pts bal. perdues", value: extractedStats.stats.points_balles_perdues },
-                        { label: "Pts raquette", value: extractedStats.stats.points_raquette },
-                        { label: "Pts 2e chance", value: extractedStats.stats.points_2eme_chance },
-                      ].filter(s => s.value !== null && s.value !== undefined).map((stat) => (
-                        <div key={stat.label} style={{ padding: "8px 10px", background: "#f8fafc", borderRadius: "8px", fontSize: "12px" }}>
-                          <div style={{ color: "#94a3b8", marginBottom: "2px" }}>{stat.label}</div>
-                          <div style={{ fontWeight: "700", color: "#1e293b" }}>{stat.value}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={saveResultWithStats}
-                    disabled={isSavingResult}
-                    style={{
-                      marginTop: "16px", padding: "12px 24px", borderRadius: "12px", border: "none",
-                      background: "#059669", color: "#fff", fontWeight: "700", fontSize: "14px", cursor: "pointer",
-                    }}
-                  >
-                    {isSavingResult ? "Enregistrement..." : "✓ Enregistrer ce résultat"}
-                  </button>
                 </div>
-              )}
-            </div>
-
-            {/* Formulaire saisie manuelle */}
-            <div style={{ padding: "20px", background: "#f8fafc", borderRadius: "16px", border: "1px solid #e2e8f0", marginBottom: "24px" }}>
-              <div style={{ fontSize: "13px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "16px" }}>
-                {editingResultId ? "Modifier le résultat" : "Saisie manuelle"}
-              </div>
-
-              {/* Adversaire */}
-              <div style={{ marginBottom: "12px" }}>
-                <label style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "6px" }}>Adversaire (optionnel)</label>
-                <input
-                  type="text"
-                  value={resultForm.opponent}
-                  onChange={(e) => setResultForm({ ...resultForm, opponent: e.target.value })}
-                  placeholder="ex: FC Lyon"
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "14px", outline: "none" }}
-                />
-              </div>
-
-              {/* Date du match */}
-              <div style={{ marginBottom: "12px" }}>
-                <label style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "6px" }}>Date du match</label>
-                <input
-                  type="date"
-                  value={resultForm.match_date}
-                  onChange={(e) => setResultForm({ ...resultForm, match_date: e.target.value })}
-                  style={{ padding: "10px 12px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "14px", outline: "none", cursor: "pointer" }}
-                />
-              </div>
-
-              {/* Résultat */}
-              <div style={{ marginBottom: "12px" }}>
-                <label style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "6px" }}>Résultat *</label>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  {[
-                    { value: "win",  label: "Victoire", color: "#059669", bg: "#dcfce7" },
-                    { value: "draw", label: "Nul",      color: "#d97706", bg: "#fef3c7" },
-                    { value: "loss", label: "Défaite",  color: "#dc2626", bg: "#fee2e2" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setResultForm({ ...resultForm, outcome: opt.value })}
-                      style={{
-                        flex: 1, padding: "10px", borderRadius: "10px", border: "2px solid",
-                        borderColor: resultForm.outcome === opt.value ? opt.color : "#e2e8f0",
-                        background: resultForm.outcome === opt.value ? opt.bg : "#fff",
-                        color: resultForm.outcome === opt.value ? opt.color : "#94a3b8",
-                        fontWeight: "700", fontSize: "14px", cursor: "pointer", transition: "all 0.15s",
-                      }}
-                    >
+                <div style={{ display: "flex", gap: "6px", marginBottom: "10px" }}>
+                  {[{ value: "win", label: "Victoire", color: "#059669", bg: "#dcfce7" }, { value: "draw", label: "Nul", color: "#d97706", bg: "#fef3c7" }, { value: "loss", label: "Défaite", color: "#dc2626", bg: "#fee2e2" }].map((opt) => (
+                    <button key={opt.value} onClick={() => setResultForm({ ...resultForm, outcome: opt.value })} style={{ flex: 1, padding: "8px", borderRadius: "8px", border: "2px solid", borderColor: resultForm.outcome === opt.value ? opt.color : "#e2e8f0", background: resultForm.outcome === opt.value ? opt.bg : "#fff", color: resultForm.outcome === opt.value ? opt.color : "#94a3b8", fontWeight: "700", fontSize: "12px", cursor: "pointer" }}>
                       {opt.label}
                     </button>
                   ))}
                 </div>
-              </div>
-
-              {/* Score */}
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "6px" }}>Score (optionnel)</label>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <input
-                    type="number" min="0" max="99"
-                    value={resultForm.score_us}
-                    onChange={(e) => setResultForm({ ...resultForm, score_us: e.target.value })}
-                    placeholder="Nous"
-                    style={{ width: "80px", padding: "10px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "18px", fontWeight: "700", textAlign: "center", outline: "none" }}
-                  />
-                  <span style={{ fontSize: "20px", fontWeight: "700", color: "#94a3b8" }}>—</span>
-                  <input
-                    type="number" min="0" max="99"
-                    value={resultForm.score_them}
-                    onChange={(e) => setResultForm({ ...resultForm, score_them: e.target.value })}
-                    placeholder="Eux"
-                    style={{ width: "80px", padding: "10px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "18px", fontWeight: "700", textAlign: "center", outline: "none" }}
-                  />
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                  <input type="number" min="0" max="99" value={resultForm.score_us} onChange={(e) => setResultForm({ ...resultForm, score_us: e.target.value })} placeholder="Nous" style={{ width: "64px", padding: "8px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "16px", fontWeight: "700", textAlign: "center", outline: "none" }} />
+                  <span style={{ fontSize: "16px", fontWeight: "700", color: "#94a3b8" }}>—</span>
+                  <input type="number" min="0" max="99" value={resultForm.score_them} onChange={(e) => setResultForm({ ...resultForm, score_them: e.target.value })} placeholder="Eux" style={{ width: "64px", padding: "8px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "16px", fontWeight: "700", textAlign: "center", outline: "none" }} />
                 </div>
-              </div>
-
-              <div style={{ display: "flex", gap: "8px" }}>
-                <button
-                  onClick={saveResult}
-                  disabled={!resultForm.outcome || isSavingResult}
-                  style={{
-                    padding: "12px 24px", borderRadius: "10px", border: "none",
-                    background: resultForm.outcome ? "#dc2626" : "#e2e8f0",
-                    color: resultForm.outcome ? "#fff" : "#94a3b8",
-                    fontWeight: "700", fontSize: "14px",
-                    cursor: resultForm.outcome ? "pointer" : "not-allowed",
-                  }}
-                >
-                  {isSavingResult ? "Enregistrement..." : editingResultId ? "Mettre à jour" : "Enregistrer"}
-                </button>
-                {editingResultId && (
-                  <button
-                    onClick={() => { setEditingResultId(null); setResultForm({ outcome: "", score_us: "", score_them: "", opponent: "" }); }}
-                    style={{ padding: "12px 20px", borderRadius: "10px", border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontWeight: "600", fontSize: "14px", cursor: "pointer" }}
-                  >
-                    Annuler
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button onClick={saveResult} disabled={!resultForm.outcome || isSavingResult} style={{ padding: "10px 18px", borderRadius: "10px", border: "none", background: resultForm.outcome ? "#dc2626" : "#e2e8f0", color: resultForm.outcome ? "#fff" : "#94a3b8", fontWeight: "700", fontSize: "13px", cursor: resultForm.outcome ? "pointer" : "not-allowed" }}>
+                    {isSavingResult ? "Enregistrement..." : editingResultId ? "Mettre à jour" : "Enregistrer"}
                   </button>
-                )}
-              </div>
-            </div>
-
-            {/* Liste des résultats */}
-            {results.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "40px", background: "#f8fafc", borderRadius: "16px", border: "2px dashed #e2e8f0" }}>
-                <p style={{ fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Aucun résultat enregistré</p>
-                <p style={{ fontSize: "13px", color: "#94a3b8" }}>Saisis ton premier résultat de match ci-dessus.</p>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <div style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
-                  Historique
+                  {editingResultId && (
+                    <button onClick={() => { setEditingResultId(null); setResultForm({ outcome: "", score_us: "", score_them: "", opponent: "" }); }} style={{ padding: "10px 16px", borderRadius: "10px", border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}>
+                      Annuler
+                    </button>
+                  )}
                 </div>
-                {[...results].reverse().map((result) => {
-                  const outcomeConfig = {
-                    win:  { label: "V", color: "#059669", bg: "#dcfce7", text: "Victoire" },
-                    draw: { label: "N", color: "#d97706", bg: "#fef3c7", text: "Nul" },
-                    loss: { label: "D", color: "#dc2626", bg: "#fee2e2", text: "Défaite" },
-                  }[result.outcome] || {};
-
-                  // Trouver le TEI de cette semaine dans weeklyTrend
-                  const matchWeek = weeklyTrend.find(
-                    (w) => w.week === result.week_number && w.year === result.year
-                  );
-
-                  return (
-                    <div key={result.id} style={{
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                      padding: "14px 16px", borderRadius: "12px",
-                      background: "#fff", border: "1px solid #e2e8f0",
-                      gap: "12px", flexWrap: "wrap",
-                    }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        {/* Badge résultat */}
-                        <div style={{
-                          width: "36px", height: "36px", borderRadius: "10px",
-                          background: outcomeConfig.bg, color: outcomeConfig.color,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontWeight: "800", fontSize: "16px", flexShrink: 0,
-                        }}>
-                          {outcomeConfig.label}
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: "700", fontSize: "14px", color: "#1e293b" }}>
-                            {outcomeConfig.text}
-                            {result.score_us !== null && result.score_them !== null && (
-                              <span style={{ marginLeft: "8px", color: "#64748b", fontWeight: "600" }}>
-                                {result.score_us} — {result.score_them}
-                              </span>
-                            )}
-                            {result.opponent && (
-                              <span style={{ marginLeft: "6px", color: "#94a3b8", fontWeight: "400", fontSize: "13px" }}>
-                                vs {result.opponent}
-                              </span>
-                            )}
-                          </div>
-                          <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "2px" }}>
-                            {result.match_date
-                              ? new Date(result.match_date).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long" })
-                              : `Semaine ${result.week_number}`}
-                            {matchWeek && (
-                              <span style={{ marginLeft: "8px", color: "#2563eb", fontWeight: "600" }}>
-                                · TEI {matchWeek.TEI}/100
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ display: "flex", gap: "8px" }}>
-                        <button onClick={() => startEditResult(result)} style={{ padding: "6px 12px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#f8fafc", color: "#64748b", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}>
-                          Modifier
-                        </button>
-                        <button onClick={() => deleteResult(result.id)} style={{ padding: "6px 12px", borderRadius: "8px", border: "none", background: "#fee2e2", color: "#dc2626", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}>
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
-            )}
-          </div>
-        )}
-      </section>
 
+              {/* Historique matchs */}
+              {results.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "28px", background: "#f8fafc", borderRadius: "12px", border: "2px dashed #e2e8f0" }}>
+                  <p style={{ fontWeight: "600", color: "#475569", fontSize: "13px", marginBottom: "4px" }}>Aucun résultat</p>
+                  <p style={{ fontSize: "12px", color: "#94a3b8" }}>Saisis ton premier résultat ci-dessus.</p>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>Historique</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "300px", overflowY: "auto" }}>
+                    {[...results].reverse().map((result) => {
+                      const outcomeConfig = { win: { label: "V", color: "#059669", bg: "#dcfce7", text: "Victoire" }, draw: { label: "N", color: "#d97706", bg: "#fef3c7", text: "Nul" }, loss: { label: "D", color: "#dc2626", bg: "#fee2e2", text: "Défaite" } }[result.outcome] || {};
+                      const matchWeek = weeklyTrend.find((w) => w.week === result.week_number && w.year === result.year);
+                      return (
+                        <div key={result.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "10px", background: "#fff", border: "1px solid #e2e8f0", gap: "8px", flexWrap: "wrap" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: outcomeConfig.bg, color: outcomeConfig.color, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "800", fontSize: "14px", flexShrink: 0 }}>{outcomeConfig.label}</div>
+                            <div>
+                              <div style={{ fontWeight: "700", fontSize: "13px", color: "#1e293b" }}>
+                                {outcomeConfig.text}
+                                {result.score_us !== null && result.score_them !== null && <span style={{ marginLeft: "6px", color: "#64748b", fontWeight: "600" }}>{result.score_us} — {result.score_them}</span>}
+                                {result.opponent && <span style={{ marginLeft: "4px", color: "#94a3b8", fontWeight: "400", fontSize: "12px" }}>vs {result.opponent}</span>}
+                              </div>
+                              <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "1px" }}>
+                                {result.match_date ? new Date(result.match_date).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long" }) : `Semaine ${result.week_number}`}
+                                {matchWeek && <span style={{ marginLeft: "6px", color: "#2563eb", fontWeight: "600" }}>· TEI {matchWeek.TEI}/100</span>}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: "6px" }}>
+                            <button onClick={() => startEditResult(result)} style={{ padding: "4px 10px", borderRadius: "6px", border: "1px solid #e2e8f0", background: "#f8fafc", color: "#64748b", fontSize: "11px", cursor: "pointer", fontWeight: "600" }}>Modifier</button>
+                            <button onClick={() => deleteResult(result.id)} style={{ padding: "4px 10px", borderRadius: "6px", border: "none", background: "#fee2e2", color: "#dc2626", fontSize: "11px", cursor: "pointer", fontWeight: "600" }}>×</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+      </div>
     </main>
   );
 }
