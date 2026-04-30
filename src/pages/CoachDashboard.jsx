@@ -115,6 +115,13 @@ export default function CoachDashboard() {
   const [isSavingResult, setIsSavingResult] = useState(false);
   const [editingResultId, setEditingResultId] = useState(null);
 
+  // Import feuille de match
+  const [teamName, setTeamName]           = useState(localStorage.getItem(`tpi-team-name-${teamId}`) || "");
+  const [importFile, setImportFile]       = useState(null);
+  const [isExtracting, setIsExtracting]   = useState(false);
+  const [extractedStats, setExtractedStats] = useState(null);
+  const [importError, setImportError]     = useState(null);
+
   // ── Génération du brief IA ──
   const generateBrief = async () => {
     setIsGeneratingBrief(true);
@@ -391,6 +398,178 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
       opponent:   result.opponent   ?? "",
       match_date: result.match_date ?? new Date().toISOString().split("T")[0],
     });
+  };
+
+  // ── Import feuille de match ──
+  const extractStatsFromSheet = async () => {
+    if (!importFile || !teamName.trim()) return;
+    setIsExtracting(true);
+    setImportError(null);
+    setExtractedStats(null);
+
+    // Mémoriser le nom de l'équipe
+    localStorage.setItem(`tpi-team-name-${teamId}`, teamName.trim());
+
+    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+
+    // ── MODE MOCK ──
+    if (!apiKey) {
+      await new Promise((r) => setTimeout(r, 2000));
+
+      // Simule une extraction basée sur la feuille FIBA exemple
+      const mockStats = {
+        team_name:    teamName.trim(),
+        opponent:     "Équipe adverse",
+        score_us:     64,
+        score_them:   58,
+        outcome:      "win",
+        match_date:   new Date().toISOString().split("T")[0],
+        stats: {
+          points: 64,
+          rebonds_offensifs: 4,
+          rebonds_defensifs: 3,
+          rebonds_total: 7,
+          passes_decisives: 14,
+          balles_perdues: 14,
+          interceptions: 6,
+          tirs_2pts: "20/40 (50%)",
+          tirs_3pts: "6/25 (24%)",
+          lancer_francs: "6/14 (42.9%)",
+          fautes: 20,
+          points_balles_perdues: 14,
+          points_raquette: "38 (19/33) 57.6%",
+          points_2eme_chance: 16,
+          points_contre_attaque: 5,
+        }
+      };
+
+      setExtractedStats(mockStats);
+      // Pré-remplir le formulaire
+      setResultForm({
+        outcome:    mockStats.outcome,
+        score_us:   mockStats.score_us,
+        score_them: mockStats.score_them,
+        opponent:   mockStats.opponent,
+        match_date: mockStats.match_date,
+      });
+      setIsExtracting(false);
+      return;
+    }
+
+    // ── MODE RÉEL (avec clé API) ──
+    try {
+      // Convertir le fichier en base64
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(importFile);
+      });
+
+      const isImage = importFile.type.startsWith("image/");
+      const mediaType = importFile.type || "image/jpeg";
+
+      const prompt = `Voici une feuille de statistiques FIBA Box Score de basket-ball.
+
+Mon équipe s'appelle "${teamName.trim()}". Extrais UNIQUEMENT les stats de mon équipe (pas l'adversaire).
+
+Réponds UNIQUEMENT en JSON avec cette structure exacte, sans markdown :
+{
+  "team_name": "nom exact de mon équipe tel qu'affiché",
+  "opponent": "nom de l'adversaire",
+  "score_us": nombre (score de mon équipe),
+  "score_them": nombre (score adversaire),
+  "outcome": "win" | "loss" | "draw",
+  "match_date": "YYYY-MM-DD si visible sinon null",
+  "stats": {
+    "points": nombre,
+    "rebonds_offensifs": nombre,
+    "rebonds_defensifs": nombre,
+    "rebonds_total": nombre,
+    "passes_decisives": nombre,
+    "balles_perdues": nombre,
+    "interceptions": nombre,
+    "tirs_2pts": "réussis/tentés (%)",
+    "tirs_3pts": "réussis/tentés (%)",
+    "lancer_francs": "réussis/tentés (%)",
+    "fautes": nombre,
+    "points_balles_perdues": nombre ou null,
+    "points_raquette": texte ou null,
+    "points_2eme_chance": nombre ou null,
+    "points_contre_attaque": nombre ou null
+  }
+}`;
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 1000,
+          messages: [{
+            role: "user",
+            content: [
+              {
+                type: isImage ? "image" : "document",
+                source: { type: "base64", media_type: mediaType, data: base64 },
+              },
+              { type: "text", text: prompt },
+            ],
+          }],
+        }),
+      });
+
+      const data = await response.json();
+      const text = data.content?.[0]?.text || "";
+      const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+
+      setExtractedStats(parsed);
+      setResultForm({
+        outcome:    parsed.outcome,
+        score_us:   parsed.score_us,
+        score_them: parsed.score_them,
+        opponent:   parsed.opponent,
+        match_date: parsed.match_date || new Date().toISOString().split("T")[0],
+      });
+    } catch (err) {
+      console.error(err);
+      setImportError("Erreur lors de l'extraction. Vérifie que l'image est lisible et ta clé API.");
+    }
+
+    setIsExtracting(false);
+  };
+
+  const saveResultWithStats = async () => {
+    const { outcome, score_us, score_them, opponent } = resultForm;
+    if (!outcome) return;
+    setIsSavingResult(true);
+
+    const weekNumber = getISOWeekNumber();
+    const year       = new Date().getFullYear();
+
+    await supabase.from("tpi_results").insert({
+      team_id:    teamId,
+      week_number: weekNumber,
+      year,
+      outcome,
+      opponent,
+      match_date: resultForm.match_date || null,
+      score_us:   score_us   !== "" ? parseInt(score_us)   : null,
+      score_them: score_them !== "" ? parseInt(score_them) : null,
+      team_name:  teamName.trim() || null,
+      stats:      extractedStats?.stats || null,
+    });
+
+    setResultForm({ outcome: "", score_us: "", score_them: "", opponent: "", match_date: new Date().toISOString().split("T")[0] });
+    setExtractedStats(null);
+    setImportFile(null);
+    setIsSavingResult(false);
+    fetchResults();
   };
 
   // ── Membres de l'équipe ──
@@ -1127,14 +1306,134 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
                 Résultats des matchs
               </h3>
               <p style={{ fontSize: "13px", color: "#94a3b8" }}>
-                Saisis les résultats pour corréler l'énergie d'équipe avec les performances terrain.
+                Saisis manuellement ou importe une feuille FIBA Box Score.
               </p>
             </div>
 
-            {/* Formulaire saisie */}
+            {/* ── Section import ── */}
+            <div style={{ padding: "20px", background: "linear-gradient(135deg, #eff6ff, #f5f3ff)", borderRadius: "16px", border: "1px solid #ddd6fe", marginBottom: "24px" }}>
+              <div style={{ fontSize: "13px", fontWeight: "700", color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "16px" }}>
+                ✦ Import automatique — Feuille FIBA Box Score
+                {!import.meta.env.VITE_ANTHROPIC_API_KEY && (
+                  <span style={{ marginLeft: "8px", fontSize: "11px", color: "#d97706", background: "#fef3c7", padding: "2px 8px", borderRadius: "6px", fontWeight: "600" }}>
+                    Mode démo
+                  </span>
+                )}
+              </div>
+
+              {/* Nom de l'équipe */}
+              <div style={{ marginBottom: "12px" }}>
+                <label style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "6px" }}>
+                  Nom de ton équipe (tel qu'affiché sur la feuille FIBA)
+                </label>
+                <input
+                  type="text"
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  placeholder="ex: JDA DIJON"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "14px", outline: "none" }}
+                />
+              </div>
+
+              {/* Upload fichier */}
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "6px" }}>
+                  Photo ou PDF de la feuille de match
+                </label>
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => { setImportFile(e.target.files[0]); setExtractedStats(null); setImportError(null); }}
+                  style={{ fontSize: "13px", color: "#475569" }}
+                />
+                {importFile && (
+                  <div style={{ marginTop: "6px", fontSize: "12px", color: "#7c3aed", fontWeight: "600" }}>
+                    ✓ {importFile.name}
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={extractStatsFromSheet}
+                disabled={!importFile || !teamName.trim() || isExtracting}
+                style={{
+                  padding: "12px 24px", borderRadius: "12px", border: "none",
+                  background: importFile && teamName.trim() ? "linear-gradient(135deg, #7c3aed, #2563eb)" : "#e2e8f0",
+                  color: importFile && teamName.trim() ? "#fff" : "#94a3b8",
+                  fontWeight: "700", fontSize: "14px",
+                  cursor: importFile && teamName.trim() ? "pointer" : "not-allowed",
+                }}
+              >
+                {isExtracting ? "Extraction en cours..." : "✦ Extraire les stats"}
+              </button>
+
+              {importError && (
+                <div style={{ marginTop: "12px", padding: "12px", background: "#fee2e2", borderRadius: "10px", color: "#b91c1c", fontSize: "13px" }}>
+                  ⚠ {importError}
+                </div>
+              )}
+
+              {/* Résultat extraction */}
+              {extractedStats && !isExtracting && (
+                <div style={{ marginTop: "16px", padding: "16px", background: "#fff", borderRadius: "12px", border: "1px solid #ddd6fe" }}>
+                  <div style={{ fontSize: "12px", fontWeight: "700", color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "12px" }}>
+                    Stats extraites — {extractedStats.team_name}
+                  </div>
+
+                  {/* Score */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
+                    <div style={{
+                      padding: "6px 16px", borderRadius: "20px", fontWeight: "800", fontSize: "18px",
+                      background: extractedStats.outcome === "win" ? "#dcfce7" : extractedStats.outcome === "loss" ? "#fee2e2" : "#fef3c7",
+                      color: extractedStats.outcome === "win" ? "#059669" : extractedStats.outcome === "loss" ? "#dc2626" : "#d97706",
+                    }}>
+                      {extractedStats.score_us} — {extractedStats.score_them}
+                    </div>
+                    <span style={{ fontSize: "13px", color: "#64748b" }}>vs {extractedStats.opponent}</span>
+                  </div>
+
+                  {/* Stats grid */}
+                  {extractedStats.stats && (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "8px" }}>
+                      {[
+                        { label: "Points", value: extractedStats.stats.points },
+                        { label: "Rebonds", value: extractedStats.stats.rebonds_total },
+                        { label: "Passes déc.", value: extractedStats.stats.passes_decisives },
+                        { label: "Balles perdues", value: extractedStats.stats.balles_perdues },
+                        { label: "Interceptions", value: extractedStats.stats.interceptions },
+                        { label: "Tirs 2pts", value: extractedStats.stats.tirs_2pts },
+                        { label: "Tirs 3pts", value: extractedStats.stats.tirs_3pts },
+                        { label: "Lancers francs", value: extractedStats.stats.lancer_francs },
+                        { label: "Pts bal. perdues", value: extractedStats.stats.points_balles_perdues },
+                        { label: "Pts raquette", value: extractedStats.stats.points_raquette },
+                        { label: "Pts 2e chance", value: extractedStats.stats.points_2eme_chance },
+                      ].filter(s => s.value !== null && s.value !== undefined).map((stat) => (
+                        <div key={stat.label} style={{ padding: "8px 10px", background: "#f8fafc", borderRadius: "8px", fontSize: "12px" }}>
+                          <div style={{ color: "#94a3b8", marginBottom: "2px" }}>{stat.label}</div>
+                          <div style={{ fontWeight: "700", color: "#1e293b" }}>{stat.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={saveResultWithStats}
+                    disabled={isSavingResult}
+                    style={{
+                      marginTop: "16px", padding: "12px 24px", borderRadius: "12px", border: "none",
+                      background: "#059669", color: "#fff", fontWeight: "700", fontSize: "14px", cursor: "pointer",
+                    }}
+                  >
+                    {isSavingResult ? "Enregistrement..." : "✓ Enregistrer ce résultat"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Formulaire saisie manuelle */}
             <div style={{ padding: "20px", background: "#f8fafc", borderRadius: "16px", border: "1px solid #e2e8f0", marginBottom: "24px" }}>
               <div style={{ fontSize: "13px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "16px" }}>
-                {editingResultId ? "Modifier le résultat" : `Résultat — Semaine ${getISOWeekNumber()}`}
+                {editingResultId ? "Modifier le résultat" : "Saisie manuelle"}
               </div>
 
               {/* Adversaire */}
