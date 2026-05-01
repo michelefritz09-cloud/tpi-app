@@ -9,6 +9,7 @@ import { QRCodeCanvas } from "qrcode.react";
 import { supabase } from "../lib/supabase";
 import { useSearchParams } from "react-router-dom";
 import { dimensions } from "../data/tpiData";
+import { generateBriefIA, extractStatsFromSheet as extractStatsAPI } from "../lib/claudeApi";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -155,55 +156,12 @@ export default function CoachDashboard() {
     if (!currentScores) return;
     setIsGeneratingBrief(true);
     setBrief(null);
-    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-
-    if (!apiKey) {
-      await new Promise((r) => setTimeout(r, 1800));
-      const dimList = Object.entries(currentScores).map(([d, s]) => `${d} : ${s}/100`).join(", ");
-      const lowestDim  = Object.entries(currentScores).reduce((a, b) => b[1] < a[1] ? b : a);
-      const highestDim = Object.entries(currentScores).reduce((a, b) => b[1] > a[1] ? b : a);
-      const tei = Math.round(Object.values(currentScores).reduce((s, v) => s + v, 0) / Object.values(currentScores).length);
-      const trend = trendDelta !== null ? (trendDelta >= 0 ? `en progression de +${trendDelta} pts` : `en recul de ${trendDelta} pts`) : "stable";
-      setBrief({
-        synthese: `L'équipe ${teamId} affiche un TEI de ${tei}/100 cette semaine (${dimList}), ${trend} par rapport à la semaine précédente. Le point fort de l'équipe est la dimension ${highestDim[0]} (${highestDim[1]}/100), ce qui indique une bonne dynamique sur cet axe. En revanche, la dimension ${lowestDim[0]} (${lowestDim[1]}/100) constitue la principale fragilité du moment et mérite une attention particulière avant la prochaine échéance.`,
-        recommandations: [
-          `Ouvrir un temps de parole collectif cette semaine autour de la dimension ${lowestDim[0]} — poser la question directement à l'équipe : qu'est-ce qui vous retient ?`,
-          `S'appuyer sur le point fort ${highestDim[0]} pour renforcer la confiance collective — mettre en valeur ce qui fonctionne avant d'aborder ce qui coince.`,
-          `Maintenir le rythme du pulse hebdomadaire pour observer si la tendance ${trend.includes("progression") ? "se confirme" : "s'inverse"} la semaine prochaine.`,
-        ],
-        isMock: true,
-      });
-      setIsGeneratingBrief(false);
-      return;
-    }
-
     try {
-      const dimList = Object.entries(currentScores).map(([d, s]) => `- ${d} : ${s}/100`).join("\n");
-      const trendText = trendDelta !== null
-        ? `Tendance vs semaine précédente : ${trendDelta >= 0 ? `+${trendDelta}` : trendDelta} pts`
-        : "Première semaine de données disponibles.";
-      const prompt = `Tu es un expert en performance collective et coaching d'équipe. Voici les données TPI (Team Performance Intelligence) de l'équipe "${teamId}" pour cette semaine :\n\nScores par dimension :\n${dimList}\n\n${trendText}\nNombre de répondants : ${responseCount}\n\nGénère un brief coach structuré en JSON avec exactement ces deux clés :\n- "synthese" : un paragraphe de 3-4 phrases résumant l'état de l'équipe, les points saillants et la tendance.\n- "recommandations" : un tableau de 3 recommandations concrètes et actionnables pour le coach cette semaine.\n\nRéponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 800,
-          messages: [{ role: "user", content: prompt }],
-        }),
-      });
-      const data = await response.json();
-      const text = data.content?.[0]?.text || "";
-      const parsed = JSON.parse(text);
+      const parsed = await generateBriefIA({ teamId, currentScores, responseCount, trendDelta });
       setBrief({ ...parsed, isMock: false });
     } catch (err) {
       console.error("Brief IA error:", err);
-      setBrief({ error: "Erreur lors de la génération. Vérifie ta clé API." });
+      setBrief({ error: `Erreur lors de la génération : ${err.message}` });
     }
     setIsGeneratingBrief(false);
   };
@@ -376,16 +334,6 @@ export default function CoachDashboard() {
     setExtractedStats(null);
     localStorage.setItem(`tpi-team-name-${teamId}`, teamName.trim());
 
-    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      await new Promise((r) => setTimeout(r, 2000));
-      const mockStats = { team_name: teamName.trim(), opponent: "Équipe adverse", score_us: 64, score_them: 58, outcome: "win", match_date: new Date().toISOString().split("T")[0], stats: { points: 64, rebonds_offensifs: 4, rebonds_defensifs: 3, rebonds_total: 7, passes_decisives: 14, balles_perdues: 14, interceptions: 6, tirs_2pts: "20/40 (50%)", tirs_3pts: "6/25 (24%)", lancer_francs: "6/14 (42.9%)", fautes: 20, points_balles_perdues: 14, points_raquette: "38 (19/33) 57.6%", points_2eme_chance: 16, points_contre_attaque: 5 } };
-      setExtractedStats(mockStats);
-      setResultForm({ outcome: mockStats.outcome, score_us: mockStats.score_us, score_them: mockStats.score_them, opponent: mockStats.opponent, match_date: mockStats.match_date });
-      setIsExtracting(false);
-      return;
-    }
-
     try {
       const base64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -393,22 +341,20 @@ export default function CoachDashboard() {
         reader.onerror = reject;
         reader.readAsDataURL(importFile);
       });
-      const isImage  = importFile.type.startsWith("image/");
+      const isImage   = importFile.type.startsWith("image/");
       const mediaType = importFile.type || "image/jpeg";
-      const prompt = `Voici une feuille de statistiques FIBA Box Score de basket-ball.\n\nMon équipe s'appelle "${teamName.trim()}". Extrais UNIQUEMENT les stats de mon équipe (pas l'adversaire).\n\nRéponds UNIQUEMENT en JSON avec cette structure exacte, sans markdown :\n{\n  "team_name": "nom exact de mon équipe tel qu'affiché",\n  "opponent": "nom de l'adversaire",\n  "score_us": nombre,\n  "score_them": nombre,\n  "outcome": "win" | "loss" | "draw",\n  "match_date": "YYYY-MM-DD si visible sinon null",\n  "stats": { "points": nombre, "rebonds_offensifs": nombre, "rebonds_defensifs": nombre, "rebonds_total": nombre, "passes_decisives": nombre, "balles_perdues": nombre, "interceptions": nombre, "tirs_2pts": "réussis/tentés (%)", "tirs_3pts": "réussis/tentés (%)", "lancer_francs": "réussis/tentés (%)", "fautes": nombre, "points_balles_perdues": nombre ou null, "points_raquette": texte ou null, "points_2eme_chance": nombre ou null, "points_contre_attaque": nombre ou null }\n}`;
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 1000, messages: [{ role: "user", content: [{ type: isImage ? "image" : "document", source: { type: "base64", media_type: mediaType, data: base64 } }, { type: "text", text: prompt }] }] }),
-      });
-      const data = await response.json();
-      const text = data.content?.[0]?.text || "";
-      const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+      const parsed    = await extractStatsAPI({ base64, mediaType, teamName: teamName.trim(), isImage });
       setExtractedStats(parsed);
-      setResultForm({ outcome: parsed.outcome, score_us: parsed.score_us, score_them: parsed.score_them, opponent: parsed.opponent, match_date: parsed.match_date || new Date().toISOString().split("T")[0] });
+      setResultForm({
+        outcome:    parsed.outcome,
+        score_us:   parsed.score_us,
+        score_them: parsed.score_them,
+        opponent:   parsed.opponent,
+        match_date: parsed.match_date || new Date().toISOString().split("T")[0],
+      });
     } catch (err) {
       console.error(err);
-      setImportError("Erreur lors de l'extraction. Vérifie que l'image est lisible et ta clé API.");
+      setImportError(`Erreur lors de l'extraction : ${err.message}`);
     }
     setIsExtracting(false);
   };
