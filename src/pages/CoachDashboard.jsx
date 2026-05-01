@@ -151,17 +151,19 @@ export default function CoachDashboard() {
   const [importError, setImportError]     = useState(null);
 
   // ── Brief IA ──
-  const generateBrief = async () => {
+  const generateBrief = async (scoresOverride = null) => {
+    const scores = scoresOverride || currentScores;
+    if (!scores) return;
     setIsGeneratingBrief(true);
     setBrief(null);
     const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
 
     if (!apiKey) {
       await new Promise((r) => setTimeout(r, 1800));
-      const dimList = Object.entries(currentScores).map(([d, s]) => `${d} : ${s}/100`).join(", ");
-      const lowestDim  = Object.entries(currentScores).reduce((a, b) => b[1] < a[1] ? b : a);
-      const highestDim = Object.entries(currentScores).reduce((a, b) => b[1] > a[1] ? b : a);
-      const tei = Math.round(Object.values(currentScores).reduce((s, v) => s + v, 0) / Object.values(currentScores).length);
+      const dimList = Object.entries(scores).map(([d, s]) => `${d} : ${s}/100`).join(", ");
+      const lowestDim  = Object.entries(scores).reduce((a, b) => b[1] < a[1] ? b : a);
+      const highestDim = Object.entries(scores).reduce((a, b) => b[1] > a[1] ? b : a);
+      const tei = Math.round(Object.values(scores).reduce((s, v) => s + v, 0) / Object.values(scores).length);
       const trend = trendDelta !== null ? (trendDelta >= 0 ? `en progression de +${trendDelta} pts` : `en recul de ${trendDelta} pts`) : "stable";
       setBrief({
         synthese: `L'équipe ${teamId} affiche un TEI de ${tei}/100 cette semaine (${dimList}), ${trend} par rapport à la semaine précédente. Le point fort de l'équipe est la dimension ${highestDim[0]} (${highestDim[1]}/100), ce qui indique une bonne dynamique sur cet axe. En revanche, la dimension ${lowestDim[0]} (${lowestDim[1]}/100) constitue la principale fragilité du moment et mérite une attention particulière avant la prochaine échéance.`,
@@ -177,7 +179,7 @@ export default function CoachDashboard() {
     }
 
     try {
-      const dimList = Object.entries(currentScores).map(([d, s]) => `- ${d} : ${s}/100`).join("\n");
+      const dimList = Object.entries(scores).map(([d, s]) => `- ${d} : ${s}/100`).join("\n");
       const trendText = trendDelta !== null
         ? `Tendance vs semaine précédente : ${trendDelta >= 0 ? `+${trendDelta}` : trendDelta} pts`
         : "Première semaine de données disponibles.";
@@ -299,6 +301,7 @@ export default function CoachDashboard() {
       setTrendDelta(null);
     }
     setIsLoading(false);
+    return scoresForDashboard || null;
   };
 
   // ── Résultats ──
@@ -484,7 +487,10 @@ export default function CoachDashboard() {
   useEffect(() => {
     fetchResponses();
     fetchMembers();
-    fetchResponses().then(() => { fetchResults(); generateBrief(); });
+    fetchResponses().then((scores) => {
+      fetchResults();
+      if (scores) generateBrief(scores);
+    });
     const channel = supabase
       .channel(`tpi-responses-live-${teamId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "tpi_responses" }, () => { fetchResponses(); })
