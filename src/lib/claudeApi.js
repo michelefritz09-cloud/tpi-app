@@ -74,7 +74,8 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
   });
 
   const text = data.content?.[0]?.text || "";
-  return JSON.parse(text);
+  const clean = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+  return JSON.parse(clean);
 }
 
 /**
