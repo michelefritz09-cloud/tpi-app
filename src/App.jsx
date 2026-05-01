@@ -9,14 +9,16 @@ export default function App() {
 
         <header style={{
           background: "#0f172a",
-          borderBottom: "1px solid #1e3a5f",
+          border: "1px solid #1e3a5f",
+          borderRadius: "14px",
           padding: "0 24px",
           height: "52px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          margin: "12px 16px 0",
           position: "sticky",
-          top: 0,
+          top: "12px",
           zIndex: 100,
         }}>
           {/* Logo + titre */}
