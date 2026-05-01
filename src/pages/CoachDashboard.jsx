@@ -484,7 +484,7 @@ export default function CoachDashboard() {
   useEffect(() => {
     fetchResponses();
     fetchMembers();
-    fetchResponses().then(() => fetchResults());
+    fetchResponses().then(() => { fetchResults(); generateBrief(); });
     const channel = supabase
       .channel(`tpi-responses-live-${teamId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "tpi_responses" }, () => { fetchResponses(); })
@@ -575,8 +575,8 @@ export default function CoachDashboard() {
       <div style={{
         gridColumn: "1 / -1",
         background: "#0f172a",
-        borderRadius: "18px",
-        padding: "20px 24px",
+        borderRadius: "16px",
+        padding: "12px 20px",
         position: "relative",
       }}>
 
@@ -610,7 +610,7 @@ export default function CoachDashboard() {
           </div>
 
           {/* Séparateur */}
-          <div style={{ width: "1px", height: "64px", background: "#1e3a5f", flexShrink: 0 }} />
+          <div style={{ width: "1px", height: "52px", background: "#1e3a5f", flexShrink: 0 }} />
 
           {/* ── TEI — élément dominant ── */}
           {(() => {
@@ -620,24 +620,24 @@ export default function CoachDashboard() {
             return (
               <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
                 <div style={{
-                  width: "76px", height: "76px", borderRadius: "50%",
+                  width: "64px", height: "64px", borderRadius: "50%",
                   background: teiRingBg,
                   border: `2.5px solid ${teiColor}`,
                   display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                  boxShadow: `0 0 18px ${teiColor}30`,
+                  boxShadow: `0 0 16px ${teiColor}30`,
                 }}>
-                  <span style={{ fontSize: "30px", fontWeight: "900", color: "#fff", lineHeight: 1 }}>{globalScore}</span>
-                  <span style={{ fontSize: "10px", color: "#475569", fontWeight: "600" }}>/100</span>
+                  <span style={{ fontSize: "26px", fontWeight: "900", color: "#fff", lineHeight: 1 }}>{globalScore}</span>
+                  <span style={{ fontSize: "9px", color: "#475569", fontWeight: "600" }}>/100</span>
                 </div>
                 <div>
-                  <div style={{ fontSize: "10px", fontWeight: "700", color: "#334155", textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: "3px" }}>Score TEI</div>
-                  <div style={{ fontSize: "15px", fontWeight: "700", color: teiColor, marginBottom: "6px" }}>{teiLabel}</div>
+                  <div style={{ fontSize: "10px", fontWeight: "700", color: "#334155", textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: "2px" }}>Score TEI</div>
+                  <div style={{ fontSize: "14px", fontWeight: "700", color: teiColor, marginBottom: "5px" }}>{teiLabel}</div>
                   {trendDelta !== null && (
                     <div style={{
                       display: "inline-flex", alignItems: "center", gap: "3px",
-                      padding: "3px 9px", borderRadius: "20px",
+                      padding: "2px 8px", borderRadius: "20px",
                       background: trendDelta >= 0 ? "rgba(74,222,128,0.12)" : "rgba(248,113,113,0.12)",
-                      fontSize: "12px", fontWeight: "700",
+                      fontSize: "11px", fontWeight: "700",
                       color: trendDelta >= 0 ? "#4ade80" : "#f87171",
                     }}>
                       {trendDelta >= 0 ? "↑" : "↓"} {Math.abs(trendDelta)} pts vs sem. préc.
@@ -649,26 +649,26 @@ export default function CoachDashboard() {
           })()}
 
           {/* Séparateur */}
-          <div style={{ width: "1px", height: "64px", background: "#1e3a5f", flexShrink: 0 }} />
+          <div style={{ width: "1px", height: "52px", background: "#1e3a5f", flexShrink: 0 }} />
 
           {/* ── Insights ── */}
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
             {/* Point fort */}
-            <div style={{ padding: "14px 22px", borderRadius: "14px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", minWidth: "150px" }}>
-              <div style={{ fontSize: "10px", fontWeight: "700", color: "#4ade80", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "6px" }}>↑ Point fort</div>
-              <div style={{ fontSize: "20px", fontWeight: "800", color: "#fff", marginBottom: "3px" }}>{strongest.dimension}</div>
-              <div style={{ fontSize: "14px", fontWeight: "700", color: "#4ade80" }}>{strongest.score}/100</div>
+            <div style={{ padding: "10px 18px", borderRadius: "12px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", minWidth: "140px" }}>
+              <div style={{ fontSize: "10px", fontWeight: "700", color: "#4ade80", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>↑ Point fort</div>
+              <div style={{ fontSize: "18px", fontWeight: "800", color: "#fff", marginBottom: "2px" }}>{strongest.dimension}</div>
+              <div style={{ fontSize: "13px", fontWeight: "700", color: "#4ade80" }}>{strongest.score}/100</div>
             </div>
             {/* Priorité */}
-            <div style={{ padding: "14px 22px", borderRadius: "14px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", minWidth: "150px" }}>
-              <div style={{ fontSize: "10px", fontWeight: "700", color: "#f87171", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "6px" }}>⚠ Priorité</div>
-              <div style={{ fontSize: "20px", fontWeight: "800", color: "#fff", marginBottom: "3px" }}>{weakest.dimension}</div>
-              <div style={{ fontSize: "14px", fontWeight: "700", color: "#f87171" }}>{weakest.score}/100</div>
+            <div style={{ padding: "10px 18px", borderRadius: "12px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", minWidth: "140px" }}>
+              <div style={{ fontSize: "10px", fontWeight: "700", color: "#f87171", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>⚠ Priorité</div>
+              <div style={{ fontSize: "18px", fontWeight: "800", color: "#fff", marginBottom: "2px" }}>{weakest.dimension}</div>
+              <div style={{ fontSize: "13px", fontWeight: "700", color: "#f87171" }}>{weakest.score}/100</div>
             </div>
           </div>
 
           {/* Séparateur */}
-          <div style={{ width: "1px", height: "64px", background: "#1e3a5f", flexShrink: 0 }} />
+          <div style={{ width: "1px", height: "52px", background: "#1e3a5f", flexShrink: 0 }} />
 
           {/* ── Réinitialiser ── */}
           <button
@@ -684,6 +684,89 @@ export default function CoachDashboard() {
       </div>
 
       {/* ══════════════════════════════════════════
+          BRIEF IA — Section pleine largeur
+      ══════════════════════════════════════════ */}
+
+      <div style={{
+        gridColumn: "1 / -1",
+        background: "#fff",
+        borderRadius: "16px",
+        border: "1px solid #e2e8f0",
+        padding: "20px 24px",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+      }}>
+        {/* Header de section */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, #7c3aed, #2563eb)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px" }}>✦</div>
+            <div>
+              <div style={{ fontSize: "13px", fontWeight: "700", color: "#1e293b" }}>Brief coach</div>
+              <div style={{ fontSize: "11px", color: "#94a3b8" }}>Synthèse IA de la semaine · Générée automatiquement</div>
+            </div>
+          </div>
+          <button
+            onClick={generateBrief}
+            disabled={isGeneratingBrief}
+            style={{
+              padding: "8px 16px", borderRadius: "10px", border: "none",
+              background: isGeneratingBrief ? "#f1f5f9" : "linear-gradient(135deg, #7c3aed, #2563eb)",
+              color: isGeneratingBrief ? "#94a3b8" : "#fff",
+              fontWeight: "700", fontSize: "12px",
+              cursor: isGeneratingBrief ? "not-allowed" : "pointer",
+              flexShrink: 0,
+            }}
+          >
+            {isGeneratingBrief ? "⟳ Génération..." : brief ? "↺ Regénérer" : "✦ Générer"}
+          </button>
+        </div>
+
+        {/* Contenu */}
+        {isGeneratingBrief && (
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "16px 20px", background: "#f8fafc", borderRadius: "12px" }}>
+            <div style={{ fontSize: "20px", animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</div>
+            <p style={{ color: "#7c3aed", fontWeight: "600", fontSize: "13px", margin: 0 }}>Analyse des données de l'équipe en cours...</p>
+          </div>
+        )}
+
+        {!brief && !isGeneratingBrief && (
+          <div style={{ padding: "14px 20px", background: "#f8fafc", borderRadius: "12px", border: "2px dashed #e2e8f0", textAlign: "center" }}>
+            <p style={{ fontSize: "13px", color: "#94a3b8", margin: 0 }}>Le brief apparaîtra ici automatiquement au chargement.</p>
+          </div>
+        )}
+
+        {brief?.error && !isGeneratingBrief && (
+          <div style={{ padding: "14px 20px", background: "#fee2e2", borderRadius: "12px", color: "#b91c1c", fontSize: "13px" }}>{brief.error}</div>
+        )}
+
+        {brief && !brief.error && !isGeneratingBrief && (
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "16px" }}>
+            {/* Synthèse */}
+            <div style={{ padding: "16px 20px", background: "linear-gradient(135deg, #eff6ff, #f5f3ff)", borderRadius: "14px", border: "1px solid #ddd6fe" }}>
+              {brief.isMock && (
+                <div style={{ marginBottom: "10px", padding: "4px 10px", background: "#fef3c7", borderRadius: "6px", fontSize: "10px", color: "#92400e", fontWeight: "600", display: "inline-block" }}>
+                  ⚠ Aperçu démo
+                </div>
+              )}
+              <div style={{ fontSize: "10px", fontWeight: "700", color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>Synthèse</div>
+              <p style={{ fontSize: "13px", lineHeight: "1.7", color: "#1e293b", margin: 0 }}>{brief.synthese}</p>
+            </div>
+            {/* Recommandations */}
+            <div style={{ padding: "16px 20px", background: "#f8fafc", borderRadius: "14px", border: "1px solid #e2e8f0" }}>
+              <div style={{ fontSize: "10px", fontWeight: "700", color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Recommandations</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {brief.recommandations?.map((reco, i) => (
+                  <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                    <div style={{ minWidth: "22px", height: "22px", borderRadius: "50%", background: "#2563eb", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700", flexShrink: 0 }}>{i + 1}</div>
+                    <p style={{ fontSize: "13px", lineHeight: "1.6", color: "#334155", margin: 0 }}>{reco}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ══════════════════════════════════════════
           LIGNE 2 — 3 colonnes : Semaine | Équipe | Historique
       ══════════════════════════════════════════ */}
       <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1.4fr 1fr 1.4fr", gap: "20px", alignItems: "start" }}>
@@ -692,15 +775,10 @@ export default function CoachDashboard() {
         <section style={sectionCard}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
             <div style={{ ...sectionTitle, color: "#2563eb" }}>📊 Cette semaine</div>
-            <div style={{ display: "flex", gap: "6px" }}>
-              <TabButton id="profil" label="Profil" activeTab={semainneTab} setActiveTab={setSemaineTab} activeColor="#2563eb" />
-              <TabButton id="brief"  label="✦ Brief IA" activeTab={semainneTab} setActiveTab={setSemaineTab} activeColor="#7c3aed" />
-            </div>
           </div>
 
           {/* ── Profil semaine ── */}
-          {semainneTab === "profil" && (
-            <div>
+          <div>
               <div style={{ marginBottom: "20px" }}>
                 <div style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "10px" }}>
                   Radar d'équipe
@@ -734,71 +812,6 @@ export default function CoachDashboard() {
                 </div>
               </div>
             </div>
-          )}
-
-          {/* ── Brief IA ── */}
-          {semainneTab === "brief" && (
-            <div>
-              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
-                <button
-                  onClick={generateBrief}
-                  disabled={isGeneratingBrief}
-                  style={{
-                    padding: "10px 18px", borderRadius: "10px", border: "none",
-                    background: isGeneratingBrief ? "#e2e8f0" : "linear-gradient(135deg, #7c3aed, #2563eb)",
-                    color: isGeneratingBrief ? "#94a3b8" : "#fff",
-                    fontWeight: "700", fontSize: "13px", cursor: isGeneratingBrief ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {isGeneratingBrief ? "Génération..." : brief ? "Regénérer" : "✦ Générer le brief"}
-                </button>
-              </div>
-
-              {!brief && !isGeneratingBrief && (
-                <div style={{ textAlign: "center", padding: "32px 16px", background: "#f8fafc", borderRadius: "14px", border: "2px dashed #e2e8f0" }}>
-                  <div style={{ fontSize: "32px", marginBottom: "8px" }}>✦</div>
-                  <p style={{ fontWeight: "600", color: "#475569", fontSize: "14px", marginBottom: "4px" }}>Prêt à générer le brief</p>
-                  <p style={{ fontSize: "12px", color: "#94a3b8" }}>Synthèse IA + 3 recommandations concrètes.</p>
-                </div>
-              )}
-
-              {isGeneratingBrief && (
-                <div style={{ textAlign: "center", padding: "32px 16px" }}>
-                  <div style={{ fontSize: "28px", marginBottom: "8px", animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</div>
-                  <p style={{ color: "#7c3aed", fontWeight: "600", fontSize: "14px" }}>Analyse en cours...</p>
-                </div>
-              )}
-
-              {brief?.error && (
-                <div style={{ padding: "16px", background: "#fee2e2", borderRadius: "12px", color: "#b91c1c", fontSize: "13px" }}>{brief.error}</div>
-              )}
-
-              {brief && !brief.error && !isGeneratingBrief && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                  {brief.isMock && (
-                    <div style={{ padding: "6px 12px", background: "#fef3c7", borderRadius: "8px", fontSize: "11px", color: "#92400e", fontWeight: "600" }}>
-                      ⚠ Aperçu démo — connecte l'API Claude pour des briefs personnalisés
-                    </div>
-                  )}
-                  <div style={{ padding: "18px", background: "linear-gradient(135deg, #eff6ff, #f5f3ff)", borderRadius: "14px", border: "1px solid #ddd6fe" }}>
-                    <div style={{ fontSize: "10px", fontWeight: "700", color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>Synthèse</div>
-                    <p style={{ fontSize: "13px", lineHeight: "1.7", color: "#1e293b" }}>{brief.synthese}</p>
-                  </div>
-                  <div style={{ padding: "18px", background: "#f8fafc", borderRadius: "14px", border: "1px solid #e2e8f0" }}>
-                    <div style={{ fontSize: "10px", fontWeight: "700", color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Recommandations</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                      {brief.recommandations?.map((reco, i) => (
-                        <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
-                          <div style={{ minWidth: "24px", height: "24px", borderRadius: "50%", background: "#2563eb", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: "700", flexShrink: 0 }}>{i + 1}</div>
-                          <p style={{ fontSize: "13px", lineHeight: "1.6", color: "#334155", margin: 0 }}>{reco}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </section>
 
         {/* ── SECTION 2 : MON ÉQUIPE ── */}
@@ -929,7 +942,7 @@ export default function CoachDashboard() {
             <div style={{ ...sectionTitle, color: "#dc2626" }}>📈 Historique</div>
             <div style={{ display: "flex", gap: "6px" }}>
               <TabButton id="evolution"  label={`Évolution (${weeklyTrend.length})`} activeTab={historiqueTab} setActiveTab={setHistoriqueTab} activeColor="#2563eb" />
-              <TabButton id="resultats"  label="⚽ Matchs" activeTab={historiqueTab} setActiveTab={setHistoriqueTab} activeColor="#dc2626" />
+              <TabButton id="resultats"  label="🏀 Matchs" activeTab={historiqueTab} setActiveTab={setHistoriqueTab} activeColor="#dc2626" />
             </div>
           </div>
 
