@@ -3,29 +3,75 @@ import ParticipantPage from "./pages/ParticipantPage";
 import CoachDashboard from "./pages/CoachDashboard";
 
 export default function App() {
-  console.log(import.meta.env.VITE_SUPABASE_URL);
-  console.log(import.meta.env.VITE_SUPABASE_ANON_KEY);
   return (
     <BrowserRouter>
       <div className="page">
-        <header className="hero">
-          <div className="heroText">
-            <div className="kicker">Prototype TPI</div>
-            <h1>Team Performance Intelligence</h1>
-            <p>Diagnostic d’équipe, questionnaire participant et dashboard coach.</p>
+
+        <header style={{
+          background: "#0f172a",
+          borderBottom: "1px solid #1e3a5f",
+          padding: "0 24px",
+          height: "52px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          position: "sticky",
+          top: 0,
+          zIndex: 100,
+        }}>
+          {/* Logo + titre */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{
+              fontSize: "11px", fontWeight: "800", color: "#2563eb",
+              textTransform: "uppercase", letterSpacing: "0.14em",
+            }}>
+              TPI
+            </div>
+            <div style={{ width: "1px", height: "16px", background: "#1e3a5f" }} />
+            <div style={{ fontSize: "13px", fontWeight: "600", color: "#94a3b8" }}>
+              Team Performance Intelligence
+            </div>
+            <div style={{
+              marginLeft: "4px", padding: "2px 8px", borderRadius: "20px",
+              background: "rgba(37,99,235,0.15)", border: "1px solid rgba(37,99,235,0.3)",
+              fontSize: "10px", fontWeight: "700", color: "#60a5fa",
+              textTransform: "uppercase", letterSpacing: "0.06em",
+            }}>
+              Prototype
+            </div>
           </div>
 
-          <nav className="tabs">
+          {/* Navigation */}
+          <nav style={{ display: "flex", gap: "4px" }}>
             <NavLink
               to="/participant"
-              className={({ isActive }) => (isActive ? "tab active" : "tab")}
+              style={({ isActive }) => ({
+                padding: "6px 14px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: "600",
+                textDecoration: "none",
+                background: isActive ? "rgba(37,99,235,0.2)" : "transparent",
+                color: isActive ? "#60a5fa" : "#475569",
+                border: isActive ? "1px solid rgba(37,99,235,0.3)" : "1px solid transparent",
+                transition: "all 0.15s",
+              })}
             >
               Participant
             </NavLink>
-
             <NavLink
               to="/coach"
-              className={({ isActive }) => (isActive ? "tab active" : "tab")}
+              style={({ isActive }) => ({
+                padding: "6px 14px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: "600",
+                textDecoration: "none",
+                background: isActive ? "rgba(37,99,235,0.2)" : "transparent",
+                color: isActive ? "#60a5fa" : "#475569",
+                border: isActive ? "1px solid rgba(37,99,235,0.3)" : "1px solid transparent",
+                transition: "all 0.15s",
+              })}
             >
               Coach
             </NavLink>
