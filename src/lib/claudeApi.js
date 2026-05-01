@@ -63,7 +63,10 @@ Nombre de répondants : ${responseCount}
 
 Génère un brief coach structuré en JSON avec exactement ces deux clés :
 - "synthese" : un paragraphe de 3-4 phrases résumant l'état de l'équipe, les points saillants et la tendance.
-- "recommandations" : un tableau de 3 recommandations concrètes et actionnables pour le coach cette semaine.
+- "recommandations" : un tableau de 3 strings — chaque string est une recommandation concrète et actionnable pour le coach cette semaine, rédigée en une phrase directe.
+
+Exemple de format attendu :
+{"synthese":"...","recommandations":["Organiser un temps d'échange collectif...","S'appuyer sur la cohésion...","Maintenir le rythme..."]}
 
 Réponds UNIQUEMENT avec le JSON, sans markdown ni texte autour.`;
 

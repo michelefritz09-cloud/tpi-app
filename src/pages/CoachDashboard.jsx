@@ -704,12 +704,19 @@ export default function CoachDashboard() {
             <div style={{ padding: "16px 20px", background: "#f8fafc", borderRadius: "14px", border: "1px solid #e2e8f0" }}>
               <div style={{ fontSize: "10px", fontWeight: "700", color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Recommandations</div>
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                {brief.recommandations?.map((reco, i) => (
-                  <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
-                    <div style={{ minWidth: "22px", height: "22px", borderRadius: "50%", background: "#2563eb", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700", flexShrink: 0 }}>{i + 1}</div>
-                    <p style={{ fontSize: "13px", lineHeight: "1.6", color: "#334155", margin: 0 }}>{typeof reco === "string" ? reco : reco?.text || reco?.recommandation || JSON.stringify(reco)}</p>
-                  </div>
-                ))}
+                {brief.recommandations?.map((reco, i) => {
+                  const text = typeof reco === "string" ? reco : reco?.action || reco?.text || reco?.recommandation || JSON.stringify(reco);
+                  const objectif = typeof reco === "object" ? reco?.objectif : null;
+                  return (
+                    <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                      <div style={{ minWidth: "22px", height: "22px", borderRadius: "50%", background: "#2563eb", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700", flexShrink: 0 }}>{i + 1}</div>
+                      <div>
+                        <p style={{ fontSize: "13px", lineHeight: "1.6", color: "#334155", margin: 0 }}>{text}</p>
+                        {objectif && <p style={{ fontSize: "11px", color: "#7c3aed", marginTop: "3px", fontStyle: "italic" }}>→ {objectif}</p>}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
