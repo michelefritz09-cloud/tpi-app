@@ -16,9 +16,10 @@ export default function App() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          margin: "12px 16px 0",
+          margin: "-28px -28px 24px",
+          borderRadius: "0 0 14px 14px",
           position: "sticky",
-          top: "12px",
+          top: 0,
           zIndex: 100,
         }}>
           {/* Logo + titre */}
