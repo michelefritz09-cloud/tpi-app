@@ -526,45 +526,37 @@ export default function CoachDashboard() {
         gridColumn: "1 / -1",
         background: "#0f172a",
         borderRadius: "16px",
-        padding: "14px 16px",
-        position: "relative",
+        padding: "12px 14px",
+        overflow: "hidden",
       }}>
 
-        {/* Bouton déconnexion — coin supérieur droit */}
-        <button
-          onClick={logoutCoach}
-          style={{
-            position: "absolute", top: "10px", right: "12px",
-            background: "transparent", color: "#1e3a5f",
-            border: "none", padding: "4px 8px", borderRadius: "6px",
-            fontSize: "11px", fontWeight: "500", cursor: "pointer",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "#64748b"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "#1e3a5f"; }}
-        >
-          Déconnexion ↗
-        </button>
-
-        {/* Ligne 1 — Identité + TEI */}
-        <div style={{ display: "flex", alignItems: "center", gap: "14px", paddingRight: "80px", flexWrap: "wrap" }}>
-
-          {/* Identité */}
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-            <div style={{ fontSize: "11px", fontWeight: "800", color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.14em" }}>TPI</div>
-            <div style={{ width: "1px", height: "14px", background: "#1e3a5f" }} />
-            <div style={{ fontSize: "15px", fontWeight: "800", color: "#fff", letterSpacing: "-0.01em" }}>{teamId}</div>
-            <div style={{ fontSize: "11px", color: "#475569", marginLeft: "2px" }}>
+        {/* Ligne 1 — Identité + Déconnexion */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
+            <div style={{ fontSize: "11px", fontWeight: "800", color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.14em", flexShrink: 0 }}>TPI</div>
+            <div style={{ width: "1px", height: "14px", background: "#1e3a5f", flexShrink: 0 }} />
+            <div style={{ fontSize: "15px", fontWeight: "800", color: "#fff", letterSpacing: "-0.01em", flexShrink: 0 }}>{teamId}</div>
+            <div style={{ fontSize: "11px", color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               · S.{currentWeek} · {responseCount} rép.{weeklyTrend.length > 1 && ` · ${weeklyTrend.length} sem.`}
             </div>
           </div>
+          <button
+            onClick={logoutCoach}
+            style={{ background: "transparent", color: "#475569", border: "none", padding: "4px 6px", borderRadius: "6px", fontSize: "11px", fontWeight: "500", cursor: "pointer", flexShrink: 0 }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "#64748b"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "#475569"; }}
+          >
+            Déco ↗
+          </button>
+        </div>
 
-          {/* TEI */}
-          {(() => {
+        {/* Ligne 2 — TEI */}
+        {(() => {
             const teiColor  = globalScore >= 70 ? "#4ade80" : globalScore >= 50 ? "#fbbf24" : "#f87171";
             const teiLabel  = globalScore >= 70 ? "Bonne dynamique" : globalScore >= 50 ? "À surveiller" : "Attention requise";
             const teiRingBg = globalScore >= 70 ? "rgba(74,222,128,0.1)" : globalScore >= 50 ? "rgba(251,191,36,0.1)" : "rgba(248,113,113,0.1)";
             return (
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
                 <div style={{
                   width: "52px", height: "52px", borderRadius: "50%",
                   background: teiRingBg, border: `2.5px solid ${teiColor}`,
@@ -592,26 +584,22 @@ export default function CoachDashboard() {
               </div>
             );
           })()}
-        </div>
 
-        {/* Ligne 2 — Points fort/faible + Reset */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "8px", marginTop: "10px", alignItems: "center" }}>
-          {/* Point fort */}
-          <div style={{ padding: "8px 12px", borderRadius: "10px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", minWidth: 0 }}>
+        {/* Ligne 3 — Points fort/faible + Reset */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "8px", alignItems: "center" }}>
+          <div style={{ padding: "8px 10px", borderRadius: "10px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", minWidth: 0 }}>
             <div style={{ fontSize: "9px", fontWeight: "700", color: "#4ade80", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "2px" }}>↑ Point fort</div>
-            <div style={{ fontSize: "14px", fontWeight: "800", color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{strongest.dimension}</div>
-            <div style={{ fontSize: "12px", fontWeight: "700", color: "#4ade80" }}>{strongest.score}/100</div>
+            <div style={{ fontSize: "13px", fontWeight: "800", color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{strongest.dimension}</div>
+            <div style={{ fontSize: "11px", fontWeight: "700", color: "#4ade80" }}>{strongest.score}/100</div>
           </div>
-          {/* Priorité */}
-          <div style={{ padding: "8px 12px", borderRadius: "10px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", minWidth: 0 }}>
+          <div style={{ padding: "8px 10px", borderRadius: "10px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", minWidth: 0 }}>
             <div style={{ fontSize: "9px", fontWeight: "700", color: "#f87171", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "2px" }}>⚠ Priorité</div>
-            <div style={{ fontSize: "14px", fontWeight: "800", color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{weakest.dimension}</div>
-            <div style={{ fontSize: "12px", fontWeight: "700", color: "#f87171" }}>{weakest.score}/100</div>
+            <div style={{ fontSize: "13px", fontWeight: "800", color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{weakest.dimension}</div>
+            <div style={{ fontSize: "11px", fontWeight: "700", color: "#f87171" }}>{weakest.score}/100</div>
           </div>
-          {/* Réinitialiser */}
           <button
             onClick={resetTeam}
-            style={{ background: "transparent", color: "#475569", border: "1px solid #1e3a5f", padding: "8px 10px", borderRadius: "9px", fontWeight: "600", cursor: "pointer", fontSize: "11px", whiteSpace: "nowrap" }}
+            style={{ background: "transparent", color: "#475569", border: "1px solid #1e3a5f", padding: "6px 8px", borderRadius: "8px", fontWeight: "600", cursor: "pointer", fontSize: "10px", whiteSpace: "nowrap" }}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#ef4444"; e.currentTarget.style.color = "#f87171"; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e3a5f"; e.currentTarget.style.color = "#475569"; }}
           >
