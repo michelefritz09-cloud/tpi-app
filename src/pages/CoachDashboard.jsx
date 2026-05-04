@@ -597,15 +597,15 @@ export default function CoachDashboard() {
         {/* Ligne 2 — Points fort/faible + Reset */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "8px", marginTop: "10px", alignItems: "center" }}>
           {/* Point fort */}
-          <div style={{ padding: "8px 12px", borderRadius: "10px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)" }}>
+          <div style={{ padding: "8px 12px", borderRadius: "10px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", minWidth: 0 }}>
             <div style={{ fontSize: "9px", fontWeight: "700", color: "#4ade80", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "2px" }}>↑ Point fort</div>
-            <div style={{ fontSize: "14px", fontWeight: "800", color: "#fff" }}>{strongest.dimension}</div>
+            <div style={{ fontSize: "14px", fontWeight: "800", color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{strongest.dimension}</div>
             <div style={{ fontSize: "12px", fontWeight: "700", color: "#4ade80" }}>{strongest.score}/100</div>
           </div>
           {/* Priorité */}
-          <div style={{ padding: "8px 12px", borderRadius: "10px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)" }}>
+          <div style={{ padding: "8px 12px", borderRadius: "10px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", minWidth: 0 }}>
             <div style={{ fontSize: "9px", fontWeight: "700", color: "#f87171", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "2px" }}>⚠ Priorité</div>
-            <div style={{ fontSize: "14px", fontWeight: "800", color: "#fff" }}>{weakest.dimension}</div>
+            <div style={{ fontSize: "14px", fontWeight: "800", color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{weakest.dimension}</div>
             <div style={{ fontSize: "12px", fontWeight: "700", color: "#f87171" }}>{weakest.score}/100</div>
           </div>
           {/* Réinitialiser */}
