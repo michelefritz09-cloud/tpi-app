@@ -689,7 +689,7 @@ export default function CoachDashboard() {
         )}
 
         {brief && !brief.error && !isGeneratingBrief && (
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "16px" }}>
+          <div className="briefGrid">
             {/* Synthèse */}
             <div style={{ padding: "16px 20px", background: "linear-gradient(135deg, #eff6ff, #f5f3ff)", borderRadius: "14px", border: "1px solid #ddd6fe" }}>
               {brief.isMock && (
@@ -726,7 +726,7 @@ export default function CoachDashboard() {
       {/* ══════════════════════════════════════════
           LIGNE 2 — 3 colonnes : Semaine | Équipe | Historique
       ══════════════════════════════════════════ */}
-      <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1.4fr 1fr 1.4fr", gap: "20px", alignItems: "start" }}>
+      <div className="dashRow" style={{ gridColumn: "1 / -1" }}>
 
         {/* ── SECTION 1 : CETTE SEMAINE ── */}
         <section style={sectionCard}>
@@ -952,7 +952,7 @@ export default function CoachDashboard() {
                   </ResponsiveContainer>
 
                   {/* Tableau récap compact */}
-                  <div style={{ marginTop: "20px", overflowX: "auto" }}>
+                  <div className="historyTable" style={{ marginTop: "20px" }}>
                     <div style={{ fontSize: "11px", fontWeight: "600", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>Historique</div>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
                       <thead>

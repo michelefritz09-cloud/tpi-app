@@ -1,55 +1,43 @@
 import { BrowserRouter, Routes, Route, Navigate, NavLink } from "react-router-dom";
 import ParticipantPage from "./pages/ParticipantPage";
 import CoachDashboard from "./pages/CoachDashboard";
+import "./tpi-responsive.css";
 
 export default function App() {
   return (
     <BrowserRouter>
       <div className="page">
 
-        <header style={{
-          background: "#0f172a",
-          border: "1px solid #1e3a5f",
-          borderRadius: "14px",
-          padding: "0 24px",
-          height: "52px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          margin: "-28px -28px 24px",
-          borderRadius: "0 0 14px 14px",
-          position: "sticky",
-          top: 0,
-          zIndex: 100,
-        }}>
+        <header className="tpi-header">
           {/* Logo + titre */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
             <div style={{
               fontSize: "11px", fontWeight: "800", color: "#2563eb",
               textTransform: "uppercase", letterSpacing: "0.14em",
             }}>
               TPI
             </div>
-            <div style={{ width: "1px", height: "16px", background: "#1e3a5f" }} />
-            <div style={{ fontSize: "13px", fontWeight: "600", color: "#94a3b8" }}>
+            <div style={{ width: "1px", height: "14px", background: "#1e3a5f" }} />
+            <div style={{ fontSize: "12px", fontWeight: "600", color: "#94a3b8" }}>
               Team Performance Intelligence
             </div>
             <div style={{
-              marginLeft: "4px", padding: "2px 8px", borderRadius: "20px",
+              padding: "2px 7px", borderRadius: "20px",
               background: "rgba(37,99,235,0.15)", border: "1px solid rgba(37,99,235,0.3)",
-              fontSize: "10px", fontWeight: "700", color: "#60a5fa",
+              fontSize: "9px", fontWeight: "700", color: "#60a5fa",
               textTransform: "uppercase", letterSpacing: "0.06em",
+              flexShrink: 0,
             }}>
               Prototype
             </div>
           </div>
 
           {/* Navigation */}
-          <nav style={{ display: "flex", gap: "4px" }}>
+          <nav style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
             <NavLink
               to="/participant"
               style={({ isActive }) => ({
-                padding: "6px 14px",
+                padding: "6px 12px",
                 borderRadius: "8px",
                 fontSize: "13px",
                 fontWeight: "600",
@@ -58,6 +46,7 @@ export default function App() {
                 color: isActive ? "#60a5fa" : "#475569",
                 border: isActive ? "1px solid rgba(37,99,235,0.3)" : "1px solid transparent",
                 transition: "all 0.15s",
+                whiteSpace: "nowrap",
               })}
             >
               Participant
@@ -65,7 +54,7 @@ export default function App() {
             <NavLink
               to="/coach"
               style={({ isActive }) => ({
-                padding: "6px 14px",
+                padding: "6px 12px",
                 borderRadius: "8px",
                 fontSize: "13px",
                 fontWeight: "600",
@@ -74,6 +63,7 @@ export default function App() {
                 color: isActive ? "#60a5fa" : "#475569",
                 border: isActive ? "1px solid rgba(37,99,235,0.3)" : "1px solid transparent",
                 transition: "all 0.15s",
+                whiteSpace: "nowrap",
               })}
             >
               Coach

@@ -1,0 +1,291 @@
+/* ═══════════════════════════════════════════════
+   TPI — Responsive CSS
+   Mobile-first. Breakpoints : 640px, 1024px
+═══════════════════════════════════════════════ */
+
+/* ── Reset de base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Layout global ── */
+.page {
+  min-height: 100vh;
+  background: #f1f5f9;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* ── Header ── */
+.tpi-header {
+  background: #0f172a;
+  border-bottom: 1px solid #1e3a5f;
+  padding: 0 16px;
+  height: auto;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+/* ── Coach grid ── */
+.coachGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  padding: 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ── Participant layout ── */
+.participantLayout {
+  padding: 16px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+/* ── Cards ── */
+.card {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  padding: 20px 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+
+/* ── Brief : synthèse + recommandations ── */
+.briefGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+/* ── Dashboard ligne 2 : 3 colonnes → 1 colonne sur mobile ── */
+.dashRow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+/* ── Header bande coach : KPIs ── */
+.kpiRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.kpiBlock {
+  min-width: 100px;
+}
+
+/* ── Score TEI circulaire — plus petit sur mobile ── */
+.teiCircle {
+  width: 52px !important;
+  height: 52px !important;
+  flex-shrink: 0;
+}
+
+/* ── Tableau historique — scroll horizontal ── */
+.historyTable {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Boutons d'action ── */
+.submitButton {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  touch-action: manipulation;
+}
+.submitButton:hover { background: #1d4ed8; }
+.submitButton:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.secondaryButton {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.secondaryButton:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.demoButton {
+  margin-top: 12px;
+  width: 100%;
+  background: transparent;
+  color: #94a3b8;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ── Formulaire participant ── */
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.progressBadge {
+  background: #eff6ff;
+  color: #2563eb;
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.progressBar {
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 99px;
+  margin: 12px 0 16px;
+  overflow: hidden;
+}
+.progressFill {
+  height: 100%;
+  background: #2563eb;
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+.questionsList { display: flex; flex-direction: column; gap: 16px; }
+
+.questionBlock {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+}
+
+.questionText span {
+  font-size: 10px;
+  font-weight: 700;
+  color: #2563eb;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.questionText p {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.scale {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  justify-content: space-between;
+}
+
+.scoreButton {
+  flex: 1;
+  aspect-ratio: 1;
+  max-width: 52px;
+  border-radius: 10px;
+  border: 2px solid #e2e8f0;
+  background: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+  touch-action: manipulation;
+}
+.scoreButton.selected {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+  transform: scale(1.05);
+}
+.scoreButton:hover:not(.selected) { border-color: #93c5fd; background: #eff6ff; }
+
+.formActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  justify-content: space-between;
+}
+.formActions button { flex: 1; }
+
+.stepLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2563eb;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+.success {
+  margin-top: 12px;
+  text-align: center;
+  color: #059669;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* ══════════════════════════════════════════════
+   TABLETTE (640px+)
+══════════════════════════════════════════════ */
+@media (min-width: 640px) {
+  .page { padding: 0; }
+
+  .coachGrid {
+    padding: 20px;
+    gap: 20px;
+  }
+
+  .participantLayout { padding: 24px; }
+  .card { padding: 24px; }
+
+  .briefGrid {
+    grid-template-columns: 1.2fr 1fr;
+  }
+
+  .kpiBlock { min-width: 120px; }
+}
+
+/* ══════════════════════════════════════════════
+   DESKTOP (1024px+)
+══════════════════════════════════════════════ */
+@media (min-width: 1024px) {
+  .coachGrid {
+    padding: 28px;
+  }
+
+  .dashRow {
+    grid-template-columns: 1.4fr 1fr 1.4fr;
+  }
+
+  .teiCircle {
+    width: 64px !important;
+    height: 64px !important;
+  }
+}
