@@ -516,7 +516,7 @@ export default function CoachDashboard() {
 
   // ── RENDER ──
   return (
-    <main className="coachGrid" style={{ padding: "16px", gap: "16px", display: "grid", gridTemplateColumns: "1fr", maxWidth: "100%", overflowX: "hidden" }}>
+    <main className="coachGrid" style={{ padding: "16px", gap: "16px", display: "grid", gridTemplateColumns: "1fr", width: "100%", boxSizing: "border-box" }}>
 
       {/* ══════════════════════════════════════════
           HEADER — Bande avec hiérarchie visuelle
@@ -526,8 +526,9 @@ export default function CoachDashboard() {
         gridColumn: "1 / -1",
         background: "#0f172a",
         borderRadius: "16px",
-        padding: "12px 14px",
-        overflow: "hidden",
+        padding: "12px 12px",
+        boxSizing: "border-box",
+        width: "100%",
       }}>
 
         {/* Ligne 1 — Identité + Déconnexion */}
