@@ -516,7 +516,7 @@ export default function CoachDashboard() {
 
   // ── RENDER ──
   return (
-    <main className="coachGrid">
+    <main className="coachGrid" style={{ padding: "16px", gap: "16px", display: "grid", gridTemplateColumns: "1fr" }}>
 
       {/* ══════════════════════════════════════════
           HEADER — Bande avec hiérarchie visuelle
@@ -729,7 +729,7 @@ export default function CoachDashboard() {
                   Radar d'équipe
                 </div>
                 <ResponsiveContainer width="100%" height={260}>
-                  <RadarChart data={chartData} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
+                  <RadarChart data={chartData} margin={{ top: 15, right: 30, bottom: 15, left: 30 }}>
                     <PolarGrid />
                     <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 12, fontWeight: 600 }} />
                     <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9 }} />
