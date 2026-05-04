@@ -615,7 +615,7 @@ export default function CoachDashboard() {
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#ef4444"; e.currentTarget.style.color = "#f87171"; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e3a5f"; e.currentTarget.style.color = "#475569"; }}
           >
-            Réinitialiser
+            Reset
           </button>
         </div>
 
@@ -634,24 +634,24 @@ export default function CoachDashboard() {
         boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
       }}>
         {/* Header de section */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, #7c3aed, #2563eb)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px" }}>✦</div>
-            <div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+            <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, #7c3aed, #2563eb)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>✦</div>
+            <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: "13px", fontWeight: "700", color: "#1e293b" }}>Brief coach</div>
-              <div style={{ fontSize: "11px", color: "#94a3b8" }}>Synthèse IA de la semaine · Générée automatiquement</div>
+              <div style={{ fontSize: "11px", color: "#94a3b8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Synthèse IA · Générée automatiquement</div>
             </div>
           </div>
           <button
             onClick={generateBrief}
             disabled={isGeneratingBrief}
             style={{
-              padding: "8px 16px", borderRadius: "10px", border: "none",
+              padding: "8px 14px", borderRadius: "10px", border: "none",
               background: isGeneratingBrief ? "#f1f5f9" : "linear-gradient(135deg, #7c3aed, #2563eb)",
               color: isGeneratingBrief ? "#94a3b8" : "#fff",
               fontWeight: "700", fontSize: "12px",
               cursor: isGeneratingBrief ? "not-allowed" : "pointer",
-              flexShrink: 0,
+              flexShrink: 0, whiteSpace: "nowrap",
             }}
           >
             {isGeneratingBrief ? "⟳ Génération..." : brief ? "↺ Regénérer" : "✦ Générer"}
