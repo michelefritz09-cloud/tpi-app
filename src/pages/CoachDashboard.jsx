@@ -516,7 +516,7 @@ export default function CoachDashboard() {
 
   // ── RENDER ──
   return (
-    <main className="coachGrid" style={{ padding: "16px", gap: "16px", display: "grid", gridTemplateColumns: "1fr" }}>
+    <main className="coachGrid" style={{ padding: "16px", gap: "16px", display: "grid", gridTemplateColumns: "1fr", maxWidth: "100%", overflowX: "hidden" }}>
 
       {/* ══════════════════════════════════════════
           HEADER — Bande avec hiérarchie visuelle
@@ -724,7 +724,7 @@ export default function CoachDashboard() {
 
           {/* ── Profil semaine ── */}
           <div>
-              <div style={{ marginBottom: "20px" }}>
+              <div style={{ marginBottom: "20px", width: "100%", overflow: "hidden" }}>
                 <div style={{ fontSize: "12px", fontWeight: "600", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "10px" }}>
                   Radar d'équipe
                 </div>
