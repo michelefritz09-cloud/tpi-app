@@ -6,6 +6,11 @@
 /* ── Reset de base ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 /* ── Layout global ── */
 .page {
   min-height: 100vh;
@@ -14,7 +19,7 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-/* ── Header ── */
+/* ── Header app (nav) ── */
 .tpi-header {
   background: #0f172a;
   border-bottom: 1px solid #1e3a5f;
@@ -71,6 +76,7 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
+  align-items: start;
 }
 
 /* ── Header bande coach : KPIs ── */
